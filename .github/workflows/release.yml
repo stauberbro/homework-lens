@@ -1,0 +1,45 @@
+name: Build installer
+
+# Push a tag like v1.0.0 to build the Windows installer and publish it as a GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Write config.js from repository settings
+        shell: pwsh
+        env:
+          SERVER_URL: ${{ vars.SERVER_URL }}
+          APP_KEY: ${{ secrets.APP_KEY }}
+        run: |
+          if (-not $env:SERVER_URL) { throw "Set the SERVER_URL variable in Settings > Secrets and variables > Actions > Variables." }
+          $cfg = "window.HL_CONFIG = { server: " + ($env:SERVER_URL | ConvertTo-Json) + ", appKey: " + ($env:APP_KEY | ConvertTo-Json) + " };"
+          Set-Content -Path app/src/config.js -Value $cfg -Encoding utf8
+
+      - name: Set version from tag
+        shell: pwsh
+        working-directory: app
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          npm version $v --no-git-tag-version --allow-same-version
+
+      - run: npm install
+        working-directory: app
+      - run: npm run dist
+        working-directory: app
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: app/dist/HomeworkLens-Setup.exe
+          generate_release_notes: true

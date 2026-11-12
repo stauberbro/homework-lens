@@ -1,0 +1,3007 @@
+<!doctype html><html><head><meta charset=utf8><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://*.workers.dev; media-src blob: data:"><script src="config.js"></script><script src="claude-shim.js"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Homework Lens</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500&family=Heebo:wght@400;700&family=Rubik:wght@600;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+/* Layout: side menu beside one column on graph paper. The desk where you add material, then the answer sheet. */
+:root {
+  --paper: #f3f6fa;
+  --grid: #dde6f0;
+  --sheet: #ffffff;
+  --ink: #17233a;
+  --ink-soft: #55627a;
+  --line: #c9d4e2;
+  --pen: #2647c9;
+  --pen-ink: #ffffff;
+  --pen-wash: #e6ebfb;
+  --highlight: #fff07a;
+  --highlight-ink: #17233a;
+  --warn: #b3261e;
+  --bad-wash: #fbe6e4;
+  --good: #1d7346;
+  --good-wash: #e2f3e9;
+  --display: "Bricolage Grotesque", "Rubik", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Heebo", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Heebo", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #12191f; --grid: #1b252d; --sheet: #18222a; --ink: #e8eef2;
+    --ink-soft: #9aabb8; --line: #2c3a45; --pen: #8fa8ff; --pen-ink: #0d1530;
+    --pen-wash: #22305a; --highlight: #e8d54a; --highlight-ink: #17170a; --warn: #ff8a80;
+    --bad-wash: #3b1f1d; --good: #74d39b; --good-wash: #183326;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #12191f; --grid: #1b252d; --sheet: #18222a; --ink: #e8eef2;
+  --ink-soft: #9aabb8; --line: #2c3a45; --pen: #8fa8ff; --pen-ink: #0d1530;
+  --pen-wash: #22305a; --highlight: #e8d54a; --highlight-ink: #17170a; --warn: #ff8a80;
+  --bad-wash: #3b1f1d; --good: #74d39b; --good-wash: #183326;
+}
+
+* { box-sizing: border-box; }
+body {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font: 17px/1.6 var(--body);
+  padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--paper); }
+.wrap, .panel { display: flex; flex-direction: column; gap: 24px; }
+.wrap { max-width: 760px; margin: 0 auto; }
+
+/* Side menu: a column beside the page on wide screens, a drawer on phones */
+.app { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; max-width: 1040px; margin: 0 auto; align-items: start; }
+.app > .wrap { margin: 0; width: 100%; }
+.side {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 14px;
+}
+.side-brand { display: none; font: 800 24px/1.1 var(--display); margin: 4px 8px 14px; }
+.side-brand mark { background: linear-gradient(transparent 55%, var(--highlight) 55%); color: inherit; padding: 0 2px; }
+.nav {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  text-align: start; padding: 11px 12px; font-size: 15px;
+  background: transparent; color: var(--ink-soft); border-radius: 8px;
+}
+.nav svg { flex: none; width: 18px; height: 18px; }
+.nav:hover { background: var(--pen-wash); color: var(--ink); }
+.nav[aria-current="page"] { background: var(--pen); color: var(--pen-ink); }
+#nav-settings { margin-top: 10px; }
+.menu-btn { display: none; }
+.scrim { position: fixed; inset: 0; z-index: 25; background: rgba(10, 15, 25, .45); }
+.panel-title { font: 600 24px/1.2 var(--display); margin: 0; }
+.setting { display: flex; flex-direction: column; gap: 8px; max-width: 380px; }
+.setting .label { margin: 0; }
+@media (max-width: 860px) {
+  .app { display: block; }
+  .side {
+    position: fixed; top: 0; bottom: 0; inset-inline-start: 0; z-index: 30;
+    width: min(280px, 84vw); border-radius: 0; border-block: 0; overflow-y: auto;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 18px);
+    padding-inline-start: max(12px, env(safe-area-inset-left, 0px));
+    transform: translateX(-100%); visibility: hidden;
+    transition: transform .2s ease, visibility .2s;
+  }
+  [dir="rtl"] .side { transform: translateX(100%); padding-inline-start: max(12px, env(safe-area-inset-right, 0px)); }
+  .side.open { transform: none; visibility: visible; }
+  .side-brand { display: block; }
+  .menu-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; margin-bottom: 16px; }
+  .app > .wrap { margin: 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+
+header h1 {
+  font: 800 clamp(34px, 7vw, 52px)/1 var(--display);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+header h1 mark { background: linear-gradient(transparent 55%, var(--highlight) 55%); color: inherit; padding: 0 2px; }
+header p { margin: 0; color: var(--ink-soft); max-width: 60ch; }
+
+.label {
+  font: 500 12px/1 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+h3.label { margin: 0; }
+:is(:lang(he), :lang(ar), :lang(zh), :lang(ja)) :is(.label, .chip, .pill, .tag) { letter-spacing: 0; font-size: 13px; }
+
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; }
+.tabs button {
+  background: transparent; color: var(--ink-soft);
+  padding: 10px 16px; border-radius: 7px; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { background: var(--pen); color: var(--pen-ink); }
+.tab-timer {
+  font: 500 12px/1 var(--mono); font-variant-numeric: tabular-nums;
+  background: var(--highlight); color: var(--highlight-ink);
+  padding: 4px 6px; border-radius: 4px;
+}
+.settings { display: flex; gap: 16px; flex-wrap: wrap; }
+.level { display: inline-flex; align-items: center; gap: 10px; }
+.level .label { margin: 0; }
+.level select { width: auto; }
+
+.desk {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 18px;
+  box-shadow: 0 2px 0 var(--line);
+}
+
+.drop {
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+  min-height: 180px;
+  display: grid; place-items: center;
+  text-align: center;
+  padding: 20px;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color: var(--pen); background: var(--pen-wash); }
+.drop:focus-within { outline: 3px solid var(--pen); outline-offset: 2px; }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop strong { font: 600 20px/1.2 var(--display); display: block; margin-bottom: 4px; }
+.drop span { color: var(--ink-soft); font-size: 15px; }
+.drop img { max-width: 100%; max-height: 340px; border-radius: 6px; display: block; }
+.drop.has-image { border-style: solid; padding: 10px; }
+.swap { font-size: 14px; color: var(--ink-soft); margin-top: 8px; }
+
+.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border: 0; padding: 0; margin: 0; }
+.modes legend { padding: 0; }
+@media (max-width: 560px) { .modes { grid-template-columns: repeat(2, 1fr); } }
+.mode input { position: absolute; opacity: 0; pointer-events: none; }
+.mode span {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  height: 100%;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.mode small { font-weight: 400; color: var(--ink-soft); font-size: 13px; }
+.mode input:checked + span { border-color: var(--pen); background: var(--pen-wash); box-shadow: inset 0 0 0 1px var(--pen); }
+.mode input:focus-visible + span { outline: 3px solid var(--pen); outline-offset: 2px; }
+
+select, textarea {
+  font: inherit; font-size: 16px;
+  color: var(--ink);
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  width: 100%;
+}
+textarea { resize: vertical; min-height: 46px; }
+select:focus-visible, textarea:focus-visible { outline: 3px solid var(--pen); outline-offset: 1px; border-color: var(--pen); }
+
+button {
+  font: 700 16px/1 var(--body);
+  border-radius: 8px;
+  padding: 13px 20px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+button:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; }
+.go { background: var(--pen); color: var(--pen-ink); }
+.alt { background: var(--highlight); color: var(--highlight-ink); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .14); }
+.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.go:disabled, .alt:disabled, .ghost:disabled { opacity: .45; cursor: not-allowed; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.hint { color: var(--ink-soft); font-size: 14px; margin: 0; }
+.error { color: var(--warn); font-size: 15px; margin: 0; }
+
+.kind { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.kind legend { padding: 0; }
+.kind input { position: absolute; opacity: 0; pointer-events: none; }
+.kind span { display: inline-block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 99px; font-weight: 700; font-size: 15px; line-height: 1.3; cursor: pointer; }
+.kind input:checked + span { border-color: var(--pen); background: var(--pen-wash); box-shadow: inset 0 0 0 1px var(--pen); }
+.kind input:focus-visible + span { outline: 3px solid var(--pen); outline-offset: 2px; }
+
+.photos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  padding: 12px;
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+  transition: border-color .15s, background .15s;
+}
+.photos.over { border-color: var(--pen); background: var(--pen-wash); }
+.photos .hint { flex: 1 1 180px; }
+.add-photo {
+  position: relative;
+  display: inline-flex; align-items: center;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sheet);
+  font-weight: 700; font-size: 15px;
+  cursor: pointer;
+}
+.add-photo:hover { border-color: var(--pen); }
+.add-photo:focus-within { outline: 3px solid var(--pen); outline-offset: 2px; }
+.add-photo input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+#takePhoto { background: var(--pen); color: var(--pen-ink); border-color: var(--pen); }
+.thumbs { display: flex; flex-wrap: wrap; gap: 12px; }
+.thumbs:empty { display: none; }
+.thumb { position: relative; width: 72px; height: 72px; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); display: block; }
+.thumb button {
+  position: absolute; top: -8px; inset-inline-end: -8px;
+  width: 26px; height: 26px; padding: 0;
+  border-radius: 50%;
+  background: var(--ink); color: var(--sheet);
+  font-size: 17px;
+  display: grid; place-items: center;
+}
+
+.sheet {
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 24px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.sheet h2 { font: 600 22px/1.2 var(--display); margin: 0; text-wrap: balance; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.chip {
+  font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  background: var(--highlight); color: var(--highlight-ink);
+  padding: 5px 8px; border-radius: 4px;
+}
+.note { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--pen-wash); font-size: 15px; }
+
+.thread { display: flex; flex-direction: column; gap: 16px; }
+.thread-photo { max-height: 120px; max-width: 100%; border-radius: 6px; align-self: flex-end; border: 1px solid var(--line); }
+.q {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--pen-wash);
+  border-radius: 12px;
+  border-end-end-radius: 2px;
+  padding: 8px 14px;
+  font-size: 15px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.a { overflow-wrap: anywhere; }
+.a > :first-child { margin-top: 0; }
+.a > :last-child { margin-bottom: 0; }
+.a h1, .a h2, .a h3 { font: 600 19px/1.3 var(--display); margin: 1.2em 0 .4em; }
+.a p, .a ul, .a ol { margin: 0 0 .8em; max-width: 68ch; }
+.a li { margin-bottom: .3em; }
+.a strong { background: linear-gradient(transparent 60%, var(--highlight) 60%); }
+.a code { font: 500 .9em var(--mono); background: var(--pen-wash); padding: 1px 5px; border-radius: 4px; }
+.a pre { background: var(--pen-wash); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.a pre code { background: none; padding: 0; }
+.a table { border-collapse: collapse; display: block; overflow-x: auto; font-variant-numeric: tabular-nums; }
+.a th, .a td { border: 1px solid var(--line); padding: 6px 10px; text-align: start; }
+.a details { border: 1px dashed var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: .6em; }
+.a summary { cursor: pointer; font-weight: 700; }
+.thinking { color: var(--ink-soft); font-style: italic; margin: 0; }
+.thinking::after { content: ""; animation: dots 1.2s steps(4) infinite; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+.follow { display: flex; gap: 10px; align-items: flex-end; border-top: 1px solid var(--line); padding-top: 16px; }
+.follow textarea { flex: 1; }
+
+.ex-photo {
+  font: 500 15px/1.5 var(--mono);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  align-self: flex-start;
+}
+
+/* Practice questions */
+.cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: q; }
+.card {
+  counter-increment: q;
+  display: grid; grid-template-columns: 2em 1fr; gap: 6px 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.card::before { content: counter(q); grid-row: span 2; font: 600 20px/1.3 var(--display); color: var(--pen); font-variant-numeric: tabular-nums; }
+.card-q { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.card summary { cursor: pointer; color: var(--pen); font-weight: 700; font-size: 15px; width: fit-content; }
+.card summary:focus-visible { outline: 3px solid var(--pen); outline-offset: 2px; border-radius: 4px; }
+.card-a { margin-top: 6px; }
+.card-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.deeper { display: flex; flex-direction: column; gap: 10px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.deeper:empty { display: none; }
+.deeper .label { margin: 0; }
+.deeper .card { padding: 10px 12px; }
+
+.next-quiz { background: var(--pen-wash); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.next-quiz p { margin: 0; }
+
+/* Read aloud */
+.speak { display: inline-flex; align-items: center; gap: 6px; }
+.speak svg { flex: none; width: 16px; height: 16px; }
+.speak[aria-pressed="true"] { background: var(--pen-wash); border-color: var(--pen); color: var(--ink); }
+.card details .speak { margin-top: 8px; }
+.step-head .speak, .check .speak { margin-top: 2px; }
+#qSpeakSlot:empty { display: none; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; cursor: pointer; }
+.check-row input { flex: none; width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--pen); }
+
+/* Teach me */
+.thread:empty { display: none; }
+.self-start { align-self: flex-start; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.step { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.step-head { display: flex; flex-direction: column; gap: 6px; }
+.step-head .label { margin: 0; color: var(--pen); }
+.step h3 { font: 600 20px/1.25 var(--display); margin: 0; text-wrap: balance; }
+.simpler { background: var(--pen-wash); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.simpler .label { margin: 0; }
+.check { border-top: 1px dashed var(--line); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.check .label { margin: 0; }
+.check-q { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.copt {
+  display: flex; gap: 12px; align-items: flex-start; width: 100%;
+  text-align: start; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--sheet); color: var(--ink);
+  font: 400 16px/1.4 var(--body);
+  overflow-wrap: anywhere;
+}
+.copt:hover:not(:disabled) { border-color: var(--pen); }
+.copt:disabled { cursor: default; }
+.copt.right { background: var(--good-wash); border-color: var(--good); }
+.copt.wrong { background: var(--bad-wash); border-color: var(--warn); }
+.feedback { margin: 0; font-size: 15px; }
+.feedback .ok { color: var(--good); }
+.feedback .bad { color: var(--warn); }
+.lesson-end { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.lesson-end .label { margin: 0; }
+
+/* Quiz */
+.loading, .quiz-body { display: flex; flex-direction: column; gap: 16px; }
+.loading { align-items: flex-start; }
+.progress, .timebar { background: var(--pen-wash); border-radius: 99px; overflow: hidden; }
+.progress { width: 100%; height: 8px; }
+.progress > div, .timebar > div { height: 100%; background: var(--pen); transition: width .25s linear; }
+.quiz-bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 12px;
+  padding-block: 10px;
+  background: var(--sheet);
+}
+.quiz-meta { display: flex; flex-direction: column; gap: 2px; }
+.quiz-meta strong { font: 600 18px/1.2 var(--display); }
+.clock {
+  font: 500 26px/1 var(--mono); font-variant-numeric: tabular-nums;
+  padding: 8px 12px; border-radius: 8px;
+  background: var(--pen-wash); color: var(--ink);
+  direction: ltr;
+}
+.timebar { grid-column: 1 / -1; height: 4px; }
+.timebar > div { width: 100%; }
+.quiz-bar.low .clock { background: var(--bad-wash); color: var(--warn); }
+.quiz-bar.low .timebar > div { background: var(--warn); }
+.dots { display: flex; flex-wrap: wrap; gap: 6px; }
+.dot {
+  width: 36px; height: 36px; padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--sheet); color: var(--ink-soft);
+  font: 500 13px/1 var(--mono);
+}
+.dot.done { background: var(--pen-wash); border-color: var(--pen-wash); color: var(--ink); }
+.dot.here { border-color: var(--pen); box-shadow: inset 0 0 0 1px var(--pen); color: var(--ink); }
+.problem { margin: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.problem canvas { display: block; max-width: 100%; max-height: 360px; width: auto; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.review .problem canvas { max-height: 180px; }
+.drawn svg { display: block; width: 100%; max-width: 480px; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.review .drawn svg { max-width: 320px; }
+.small { padding: 8px 12px; font-size: 14px; }
+.qtext { font: 600 clamp(19px, 3.6vw, 23px)/1.35 var(--display); margin: 0; text-wrap: pretty; overflow-wrap: anywhere; }
+.options { display: flex; flex-direction: column; gap: 10px; }
+.opt {
+  position: relative;
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.opt:hover { border-color: var(--pen); }
+.opt input { position: absolute; opacity: 0; pointer-events: none; }
+.letter {
+  flex: none;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  display: grid; place-items: center;
+  font: 500 13px/1 var(--mono);
+}
+.opt:has(input:checked) { border-color: var(--pen); background: var(--pen-wash); box-shadow: inset 0 0 0 1px var(--pen); }
+.opt:has(input:checked) .letter { background: var(--pen); border-color: var(--pen); color: var(--pen-ink); }
+.opt:has(input:focus-visible) { outline: 3px solid var(--pen); outline-offset: 2px; }
+@media (hover: none) { .key-tip { display: none; } }
+.quiz-nav { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+
+/* Results */
+.score { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.score-num { font: 800 64px/1 var(--display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--pen); direction: ltr; }
+.score-num small { font-size: 28px; font-weight: 600; color: var(--ink-soft); margin-left: 2px; }
+.score h2 { font-size: 24px; margin-bottom: 4px; }
+.review { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.rev { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rev-head { display: flex; gap: 10px; align-items: center; }
+.pill { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: 5px 9px; border-radius: 99px; }
+.pill.ok { background: var(--good-wash); color: var(--good); }
+.pill.bad { background: var(--bad-wash); color: var(--warn); }
+.pill.blank { background: var(--paper); color: var(--ink-soft); box-shadow: inset 0 0 0 1px var(--line); }
+.rev-num { font: 500 12px/1 var(--mono); color: var(--ink-soft); }
+.rev-q { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.rev-opts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+.rev-opts li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.rev-opts li > span:nth-child(2) { flex: 1 1 12em; }
+.rev-opts li.right { background: var(--good-wash); color: var(--ink); }
+.rev-opts li.wrong { background: var(--bad-wash); color: var(--ink); }
+.rev-letter { font: 500 12px/1 var(--mono); }
+.tag { font: 500 11px/1.2 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.right .tag { color: var(--good); }
+.wrong .tag { color: var(--warn); }
+.rev-why { margin: 0; font-size: 15px; color: var(--ink-soft); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 480px) {
+  .tabs { width: 100%; }
+  .tabs button { flex: 1; padding-inline: 8px; }
+  .settings { width: 100%; }
+  .level { flex: 1; justify-content: space-between; }
+  .sheet { padding: 18px 16px; }
+  .follow { flex-direction: column; align-items: stretch; }
+  .score-num { font-size: 52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thinking::after { animation: none; content: "..."; }
+  .drop, .photos, .progress > div, .timebar > div { transition: none; }
+}
+</style>
+
+<div class="app">
+<div class="scrim" id="scrim" hidden></div>
+<nav class="side" id="side" data-t-aria="menu" aria-label="Menu">
+  <p class="side-brand">Homework <mark>Lens</mark></p>
+  <button type="button" class="nav" id="nav-learn"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/><path d="M9 8h6"/></svg><span data-t="navLearn">Teach me</span></button>
+  <button type="button" class="nav" id="nav-hw"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span data-t="tabHw">Homework help</span></button>
+  <button type="button" class="nav" id="nav-exam"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span data-t="tabExam">Exam prep</span> <span class="tab-timer" id="tabTimer" hidden></span></button>
+  <button type="button" class="nav" id="nav-now"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg><span data-t="navNow">answers clanker, NOW</span></button>
+  <button type="button" class="nav" id="nav-settings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span data-t="navSettings">Settings</span></button>
+</nav>
+<div class="wrap">
+  <header>
+    <button type="button" class="menu-btn ghost" id="menuBtn" aria-expanded="false" aria-controls="side"><span aria-hidden="true">☰</span> <span data-t="menu">Menu</span></button>
+    <h1>Homework <mark>Lens</mark></h1>
+    <p data-t="tagline">Learn a topic you missed in class, get help with homework from a photo, or get ready for a test.</p>
+  </header>
+
+  <div class="panel" id="panel-settings" hidden>
+    <section class="desk">
+      <h2 class="panel-title" data-t="navSettings">Settings</h2>
+      <div class="setting">
+        <label class="label" for="lang" data-t="language">Language</label>
+        <select id="lang">
+          <option value="en">English</option>
+          <option value="he">עברית</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+          <option value="ar">العربية</option>
+          <option value="zh">中文</option>
+          <option value="ja">日本語</option>
+          <option value="el">Ελληνικά</option>
+          <option value="ru">Русский</option>
+        </select>
+        <p class="hint" data-t="langHint">The page and Claude's answers use this language.</p>
+        <p class="hint" id="langNote" aria-live="polite" hidden></p>
+      </div>
+      <div class="setting">
+        <label class="label" for="grade" data-t="level">Level</label>
+        <select id="grade">
+          <option value="elementary school" data-t="lvlElem">Elementary</option>
+          <option value="middle school" data-t="lvlMid" selected>Middle school</option>
+          <option value="high school" data-t="lvlHigh">High school</option>
+          <option value="college" data-t="lvlCollege">College</option>
+        </select>
+        <p class="hint" data-t="levelHint">Lessons, questions and explanations are written for this level.</p>
+      </div>
+      <fieldset class="kind setting" id="styleBox">
+        <legend class="label" data-t="talkStyle">Talking style</legend>
+        <label><input type="radio" name="talk" value="polite" id="s-polite" checked><span data-t="stylePolite">Polite speaking</span></label>
+        <label><input type="radio" name="talk" value="genz" id="s-genz"><span data-t="styleGenz">Gen Z slang</span></label>
+        <p class="hint" data-t="styleHint">How Claude talks in lessons, explanations and answers. The facts and answers stay the same.</p>
+      </fieldset>
+      <div class="setting">
+        <span class="label" data-t="voice">Read aloud</span>
+        <label class="check-row" for="ttsAuto"><input type="checkbox" id="ttsAuto"><span data-t="ttsAuto">Read new steps, questions and answers out loud automatically</span></label>
+        <label class="label" for="ttsRate" data-t="ttsSpeed">Speed</label>
+        <select id="ttsRate">
+          <option value="0.8" data-t="slow">Slow</option>
+          <option value="1" data-t="normal" selected>Normal</option>
+          <option value="1.2" data-t="fast">Fast</option>
+        </select>
+        <button class="ghost small self-start" id="ttsTest" type="button" data-t="ttsTest">Try the voice</button>
+        <p class="hint" id="ttsNote" hidden></p>
+      </div>
+    </section>
+  </div>
+
+  <div class="panel" id="panel-now" hidden>
+    <section class="desk">
+      <div>
+        <p class="label"><label for="nowQ" data-t="nowWhat">Type or snap the question</label></p>
+        <textarea id="nowQ" rows="2" data-t-ph="nowPh" placeholder="e.g. What is 15% of 80?"></textarea>
+      </div>
+      <div class="photos">
+        <label class="add-photo" id="nowAdd"><input type="file" id="nowFile" accept="image/jpeg,image/png,image/webp,image/gif" data-t-aria="nowPhoto" aria-label="Add a photo of the question"><span data-t="nowPhoto">+ Add a photo of the question</span></label>
+        <div class="thumbs" id="nowThumbs"></div>
+      </div>
+      <div class="actions">
+        <button class="alt" id="nowGo" type="button" disabled data-t="nowGo">Answer NOW</button>
+        <span class="hint" id="nowStatus" aria-live="polite"></span>
+      </div>
+      <p class="error" id="nowErr" hidden></p>
+    </section>
+    <section class="sheet">
+      <div class="sheet-head">
+        <h2 data-t="nowTitle">Answers</h2>
+        <span class="chip" id="nowChip" data-t="example">Example</span>
+      </div>
+      <div class="thread" id="nowThread"></div>
+    </section>
+  </div>
+
+  <div class="panel" id="panel-learn" hidden>
+    <section class="desk" id="learnDesk">
+      <div>
+        <p class="label"><label for="learnTopic" data-t="learnWhat">What do you want to learn?</label></p>
+        <textarea id="learnTopic" rows="3" data-t-ph="learnPh" placeholder="Type the topic or what the teacher talked about."></textarea>
+      </div>
+      <div class="photos">
+        <label class="add-photo" id="learnAdd"><input type="file" id="learnFile" accept="image/jpeg,image/png,image/webp,image/gif" data-t-aria="learnPhoto" aria-label="Add a photo"><span data-t="learnPhoto">+ Add a photo of the board or book</span></label>
+        <div class="thumbs" id="learnThumbs"></div>
+        <span class="hint" data-t="learnPhotoHint">Optional. A photo of the board, your notebook or the textbook page helps.</span>
+      </div>
+      <div class="actions">
+        <button class="go" id="learnGo" type="button" disabled data-t="learnGo">Teach me</button>
+        <span class="hint" id="learnStatus" aria-live="polite"></span>
+      </div>
+      <p class="error" id="learnErr" hidden></p>
+    </section>
+
+    <section class="sheet" id="lessonSheet">
+      <div class="sheet-head">
+        <h2 id="lessonTitle">Example lesson</h2>
+        <span class="chip" id="lessonChip" data-t="example">Example</span>
+        <button class="ghost" id="learnStop" type="button" hidden data-t="stop">Stop</button>
+      </div>
+      <p class="hint" id="lessonIntro"></p>
+      <ol class="steps" id="steps"></ol>
+      <div class="lesson-end" id="lessonEnd" hidden>
+        <p class="label" data-t="learnedTitle">What you learned</p>
+        <div class="a" id="lessonSummary"></div>
+        <p class="hint" id="lessonScore"></p>
+        <div class="actions">
+          <button class="go" id="learnQuiz" type="button" data-t="learnQuiz">Take a quiz on this lesson (Medium)</button>
+          <button class="ghost" id="learnPractice" type="button" data-t="learnPractice">Practice this in Exam prep</button>
+          <button class="ghost" id="learnNew" type="button" data-t="learnNew">Learn something else</button>
+        </div>
+      </div>
+      <div class="thread" id="learnChat"></div>
+      <form class="follow" id="learnAsk" hidden>
+        <textarea id="learnAskText" rows="1" data-t-ph="askLessonPh" placeholder="Ask anything about this lesson"></textarea>
+        <button class="go" id="learnAskGo" type="submit" data-t="ask">Ask</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="panel" id="panel-hw" hidden>
+    <section class="desk">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" data-t-aria="choosePhoto" aria-label="Choose a photo">
+        <div id="dropInner">
+          <strong data-t="dropTitle">Drop a photo here</strong>
+          <span data-t="dropSub">or tap to take one / choose a file. You can also paste with Ctrl+V.</span>
+        </div>
+      </label>
+
+      <fieldset class="modes">
+        <legend class="label" data-t="need">What do you need?</legend>
+        <label class="mode"><input type="radio" name="mode" value="explain" id="m-explain" checked><span><b data-t="mExplain">Explain it</b><small data-t="mExplainSub">What is this about?</small></span></label>
+        <label class="mode"><input type="radio" name="mode" value="solve" id="m-solve"><span><b data-t="mSolve">Walk me through</b><small data-t="mSolveSub">Step by step</small></span></label>
+        <label class="mode"><input type="radio" name="mode" value="check" id="m-check"><span><b data-t="mCheck">Check my work</b><small data-t="mCheckSub">Find mistakes</small></span></label>
+        <label class="mode"><input type="radio" name="mode" value="quiz" id="m-quiz"><span><b data-t="mQuiz">Quiz me</b><small data-t="mQuizSub">Practice questions</small></span></label>
+      </fieldset>
+
+      <div>
+        <p class="label"><label for="question" data-t="specific">Anything specific? (optional)</label></p>
+        <textarea id="question" rows="1" data-t-ph="specificPh" placeholder="e.g. I don't get question 4, or why does the line go up?"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="go" id="go" type="button" disabled data-t="helpGo">Help me with this</button>
+        <span class="hint" id="status" aria-live="polite">Add a photo to start.</span>
+      </div>
+    </section>
+
+    <section class="sheet">
+      <div class="sheet-head">
+        <h2 id="sheetTitle">How it works</h2>
+        <span class="chip" id="exampleChip" data-t="example">Example</span>
+        <button class="ghost" id="stop" type="button" hidden data-t="stop">Stop</button>
+      </div>
+      <div class="thread" id="thread"></div>
+      <form class="follow" id="follow" hidden>
+        <textarea id="followText" rows="1" data-t-ph="followPh" placeholder="Ask a follow-up, like: can you explain step 2 again?"></textarea>
+        <button class="go" id="followGo" type="submit" data-t="ask">Ask</button>
+      </form>
+      <p class="error" id="err" hidden></p>
+    </section>
+  </div>
+
+  <div class="panel" id="panel-exam" hidden>
+    <section class="desk" id="examDesk">
+      <div>
+        <p class="label"><label for="material" data-t="onExam">What's on the exam?</label></p>
+        <textarea id="material" rows="4" data-t-ph="materialPh" placeholder="Type the topics, paste your notes, or just add photos below."></textarea>
+      </div>
+      <fieldset class="kind" id="diffBox">
+        <legend class="label" data-t="difficulty">Difficulty</legend>
+        <label><input type="radio" name="diff" value="easy" id="d-easy"><span data-t="dEasy">Easy</span></label>
+        <label><input type="radio" name="diff" value="medium" id="d-medium" checked><span data-t="dMedium">Medium</span></label>
+        <label><input type="radio" name="diff" value="hard" id="d-hard"><span data-t="dHard">Hard</span></label>
+      </fieldset>
+      <fieldset class="kind" id="kindBox">
+        <legend class="label" data-t="photosShow">My photos show</legend>
+        <label><input type="radio" name="kind" value="questions" id="k-questions" checked><span data-t="kindQ">Questions from a worksheet or test</span></label>
+        <label><input type="radio" name="kind" value="notes" id="k-notes"><span data-t="kindN">My notes or study guide</span></label>
+      </fieldset>
+      <fieldset class="kind" id="quizFromBox" hidden>
+        <legend class="label" data-t="quizFrom">Quiz questions</legend>
+        <label><input type="radio" name="quizFrom" value="new" id="qf-new" checked><span data-t="qfNew">Make new ones, with drawings</span></label>
+        <label><input type="radio" name="quizFrom" value="photos" id="qf-photos"><span data-t="qfPhotos">Use the ones in my photos</span></label>
+      </fieldset>
+      <div class="photos" id="photos">
+        <label class="add-photo" id="takePhoto"><input type="file" id="examCamera" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" data-t-aria="takePhoto" aria-label="Take photo"><span data-t="takePhoto">Take photo</span></label>
+        <label class="add-photo" id="addPhoto"><input type="file" id="examFiles" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-t-aria="addPhotos" aria-label="Add photos"><span data-t="addPhotos">+ Add photos</span></label>
+        <div class="thumbs" id="thumbs"></div>
+        <span class="hint" id="photoHint">Take or add photos of questions or notes, or drop them here.</span>
+      </div>
+      <div class="actions">
+        <button class="go" id="practiceGo" type="button" disabled data-t="practiceGo">Make practice questions</button>
+        <button class="alt" id="quizGo" type="button" disabled data-t="quizGo">Start 10-minute quiz</button>
+        <span class="hint" id="examStatus" aria-live="polite">Type your topics or add a photo to start.</span>
+      </div>
+      <p class="error" id="examErr" hidden></p>
+    </section>
+
+    <section class="sheet" id="quizSheet" hidden>
+      <div class="loading" id="quizLoading">
+        <h2 data-t="quizReady">Getting your quiz ready</h2>
+        <div class="progress" aria-hidden="true"><div id="quizProgress" style="width:0%"></div></div>
+        <p class="thinking" id="quizLoadText">Reading your material</p>
+        <p class="hint" data-t="clockStarts">The clock starts when all 10 questions are ready.</p>
+        <button class="ghost" id="quizCancel" type="button" data-t="cancel">Cancel</button>
+      </div>
+      <div class="quiz-body" id="quizBody" hidden>
+        <div class="quiz-bar" id="quizBar">
+          <div class="quiz-meta"><strong id="qPos">Question 1 of 10</strong><span class="hint" id="qAnswered">0 of 10 answered</span></div>
+          <div class="clock" id="clock" role="timer" data-t-aria="timeLeft" aria-label="Time left">10:00</div>
+          <div class="timebar" aria-hidden="true"><div id="timeFill"></div></div>
+        </div>
+        <div class="dots" id="dots" role="group" data-t-aria="jumpTo" aria-label="Jump to a question"></div>
+        <div id="qFig" hidden></div>
+        <p class="qtext" id="qText"></p>
+        <div id="qSpeakSlot"></div>
+        <div class="options" id="options" role="radiogroup" aria-labelledby="qText"></div>
+        <p class="hint key-tip" data-t="keyTip">Tip: press A, B, C or D to pick an answer.</p>
+        <div class="quiz-nav">
+          <button class="ghost" id="prevQ" type="button" data-t="back">Back</button>
+          <button class="go" id="nextQ" type="button" data-t="next">Next</button>
+          <span class="spacer"></span>
+          <button class="alt" id="finishQ" type="button">Finish quiz</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sheet" id="resultSheet" hidden>
+      <div class="score">
+        <div class="score-num"><span id="scoreNum">0</span><small id="scoreOf">/10</small></div>
+        <div>
+          <h2 id="scoreMsg">Nice work</h2>
+          <p class="hint" id="scoreSub"></p>
+        </div>
+      </div>
+      <div class="next-quiz">
+        <p class="label" data-t="nextQuizTitle">Your next quiz</p>
+        <p id="nextQuizText"></p>
+        <button class="alt self-start" id="nextQuizGo" type="button">Start the next quiz</button>
+      </div>
+      <div class="actions">
+        <button class="go" id="newQuiz" type="button" data-t="newQuiz">New quiz</button>
+        <button class="ghost" id="retakeQuiz" type="button" data-t="retake">Retake this quiz</button>
+        <button class="ghost" id="missedGo" type="button" data-t="missed">Quiz me again on my mistakes</button>
+        <button class="ghost" id="deeperGo" type="button" data-t="explainGo" hidden>Explain my mistakes</button>
+      </div>
+      <div class="actions" id="deeperBar" hidden>
+        <span class="hint" id="deeperStatus"></span>
+        <button class="ghost small" id="deeperStop" type="button" data-t="stop">Stop</button>
+      </div>
+      <h3 class="label" data-t="review">Review</h3>
+      <ol class="review" id="review"></ol>
+    </section>
+
+    <section class="sheet" id="practiceSheet">
+      <div class="sheet-head">
+        <h2 id="practiceTitle">Practice questions</h2>
+        <span class="chip" id="practiceChip" data-t="example">Example</span>
+        <button class="ghost" id="practiceStop" type="button" hidden data-t="stop">Stop</button>
+      </div>
+      <p class="hint" id="practiceIntro"></p>
+      <ol class="cards" id="cards"></ol>
+      <p class="note" id="practiceNote" data-t="practiceNote">When you're ready, take the quiz.</p>
+      <div class="actions" id="practiceMore" hidden>
+        <button class="ghost" id="moreGo" type="button" data-t="moreGo">More questions</button>
+        <button class="alt" id="quizGo2" type="button" data-t="quizGo2">Take the 10-minute quiz</button>
+      </div>
+    </section>
+  </div>
+</div>
+</div>
+<p class="sr-only" id="announce" aria-live="assertive"></p>
+
+<script>
+const $ = id => document.getElementById(id);
+const els = Object.fromEntries(`
+  drop file dropInner go status question grade lang thread follow followText followGo err stop sheetTitle exampleChip
+  navLearn:nav-learn navHw:nav-hw navExam:nav-exam navNow:nav-now navSettings:nav-settings side scrim menuBtn
+  panelLearn:panel-learn panelHw:panel-hw panelExam:panel-exam panelNow:panel-now panelSettings:panel-settings tabTimer
+  styleBox nowQ nowAdd nowFile nowThumbs nowGo nowStatus nowErr nowChip nowThread
+  learnDesk learnTopic learnAdd learnFile learnThumbs learnGo learnStatus learnErr
+  lessonSheet lessonTitle lessonChip learnStop lessonIntro steps lessonEnd lessonSummary lessonScore
+  learnPractice learnNew learnChat learnAsk learnAskText learnAskGo
+  ttsAuto ttsRate ttsTest ttsNote qSpeakSlot langNote nextQuizText nextQuizGo learnQuiz
+  examDesk material diffBox kindBox quizFromBox photos takePhoto examCamera addPhoto examFiles thumbs photoHint practiceGo quizGo examStatus examErr
+  quizSheet quizLoading quizProgress quizLoadText quizCancel quizBody quizBar qPos qAnswered clock timeFill dots qFig qText options prevQ nextQ finishQ
+  resultSheet scoreNum scoreOf scoreMsg scoreSub newQuiz retakeQuiz missedGo deeperGo deeperBar deeperStatus deeperStop review
+  practiceSheet practiceTitle practiceChip practiceStop practiceIntro cards practiceNote practiceMore moreGo quizGo2 announce
+`.trim().split(/\s+/).map(s => { const [key, id = key] = s.split(":"); return [key, $(id)]; }));
+
+// ---------- Words on the page, in each language ----------
+const STR = {
+  en: {
+    tagline: "Learn a topic you missed in class, get help with homework from a photo, or get ready for a test with practice questions and a timed quiz.",
+    menu: "Menu", navLearn: "Teach me", navSettings: "Settings", navNow: "answers clanker, NOW",
+    talkStyle: "Talking style", stylePolite: "Polite speaking", styleGenz: "Gen Z slang",
+    styleHint: "How Claude talks in lessons, explanations and answers. The facts and answers stay the same.",
+    nowWhat: "Type or snap the question", nowPh: "e.g. What is 15% of 80?", nowPhoto: "+ Add a photo of the question",
+    nowGo: "Answer NOW", nowStart: "Type a question or add a photo.", nowTitle: "Answers",
+    nowExQ: "What is 15% of 80?", nowExA: "**12**\n\n15% means 15 out of 100, so 0.15 × 80 = 12.",
+    learnQuiz: "Take a quiz on this lesson (Medium)", nextQuizTitle: "Your next quiz",
+    levelName: { easy: "Easy", medium: "Medium", hard: "Hard" },
+    nextQuizText: (r, n, lvl) => `You got ${r} of ${n} right, so your next quiz is ${lvl}.`,
+    nextQuizReason: { easy: "Easier questions to build up the basics.", medium: "Questions at the same level to make it stick.", hard: "Harder questions to really test you." },
+    nextQuizGo: lvl => `Start the next quiz (${lvl})`, diffIs: lvl => `Difficulty: ${lvl}`,
+    listen: "Listen", stopListen: "Stop", voice: "Read aloud",
+    ttsAuto: "Read new steps, questions and answers out loud automatically",
+    ttsSpeed: "Speed", slow: "Slow", normal: "Normal", fast: "Fast", ttsTest: "Try the voice",
+    ttsSample: "Hi! I'll read your lessons, questions and answers out loud.",
+    noTts: "This browser can't read text out loud.",
+    noVoice: "This device doesn't have a voice for this language, so reading may sound wrong. You can add one in your device's language or speech settings.",
+    noHeVoice: "This device doesn't have a Hebrew voice, so reading may sound wrong. You can add a Hebrew voice in your device's language or speech settings.",
+    optionN: l => `Option ${l}`,
+    langHint: "The page and Claude's answers use this language.",
+    levelHint: "Lessons, questions and explanations are written for this level.",
+    learnWhat: "What do you want to learn?",
+    learnPh: "Type the topic or what the teacher talked about. Example: Fractions: what they mean and how to find equal fractions.",
+    learnPhoto: "+ Add a photo of the board or book",
+    learnPhotoHint: "Optional. A photo of the board, your notebook or the textbook page helps.",
+    learnPhotoAlt: "Photo of the lesson", learnGo: "Teach me", learnStart: "Type a topic or add a photo to start.",
+    lessonExTitle: "Example lesson: Fractions",
+    lessonExIntro: "This is how a lesson works. Read each step, answer the quick check, then go to the next step. Try it here.",
+    lessonIntro: "Go one step at a time. If a step doesn't make sense, tap \"I don't get it\".",
+    yourLesson: "Your lesson", stepN: i => `Step ${i}`, dontGet: "I don't get it", anotherWay: "Explained another way",
+    quickCheck: "Quick check", nextStep: "Next step", planning: "Planning your lesson", writingStep: "Writing the next step",
+    stepsReady: n => `${n} step${n > 1 ? "s" : ""} ready...`, rightMark: "Right!", wrongMark: "Not quite.",
+    learnedTitle: "What you learned", checkScore: (r, n) => `You got ${r} of ${n} quick checks right.`,
+    learnPractice: "Practice this in Exam prep", learnNew: "Learn something else",
+    askLessonPh: "Ask anything about this lesson",
+    noLesson: "Couldn't make a lesson from that. Try describing the topic in a few more words.",
+    tools: "Tools", tabHw: "Homework help", tabExam: "Exam prep", level: "Level", language: "Language",
+    lvlElem: "Elementary", lvlMid: "Middle school", lvlHigh: "High school", lvlCollege: "College",
+    dropTitle: "Drop a photo here", dropSub: "or tap to take one / choose a file. You can also paste with Ctrl+V.", choosePhoto: "Choose a photo",
+    need: "What do you need?",
+    mExplain: "Explain it", mExplainSub: "What is this about?", mSolve: "Walk me through", mSolveSub: "Step by step",
+    mCheck: "Check my work", mCheckSub: "Find mistakes", mQuiz: "Quiz me", mQuizSub: "Practice questions",
+    specific: "Anything specific? (optional)", specificPh: "e.g. I don't get question 4, or why does the line go up?",
+    helpGo: "Help me with this", howItWorks: "How it works", example: "Example", stop: "Stop",
+    followPh: "Ask a follow-up, like: can you explain step 2 again?", ask: "Ask",
+    onExam: "What's on the exam?",
+    materialPh: "Type the topics, paste your notes, or just add photos below. Example: Science test on cells. Parts of a cell, what mitochondria and ribosomes do, mitosis vs meiosis.",
+    photosShow: "My photos show", kindQ: "Questions from a worksheet or test", kindN: "My notes or study guide",
+    quizFrom: "Practice and quiz questions", qfNew: "Make new ones on the same topic, with drawings", qfPhotos: "Use the ones in my photos", drawing: "Drawing of the problem",
+    takePhoto: "Take photo", addPhotos: "+ Add photos",
+    practiceGo: "Make practice questions", quizGo: "Start 10-minute quiz",
+    quizReady: "Getting your quiz ready", clockStarts: "The clock starts when all 10 questions are ready.", cancel: "Cancel",
+    timeLeft: "Time left", jumpTo: "Jump to a question", keyTip: "Tip: press A, B, C or D to pick an answer.",
+    back: "Back", next: "Next", finish: "Finish quiz",
+    newQuiz: "New quiz", retake: "Retake this quiz", missed: "Quiz me again on my mistakes", review: "Review",
+    difficulty: "Difficulty", dEasy: "Easy", dMedium: "Medium", dHard: "Hard",
+    explainGo: "Explain my mistakes", explaining: "Explaining your mistakes",
+    explainedN: (n, total) => `Explained ${n} of ${total} mistakes...`,
+    deeperTitle: "Explained step by step", moreLike: "More like this",
+    practiceTitle: "Practice questions", practiceMissed: "Practice: what you missed",
+    practiceNote: "When you're ready, take the quiz: 10 multiple-choice questions, 10 minutes on the clock, then your score with an explanation for every question.",
+    moreGo: "More questions", quizGo2: "Take the 10-minute quiz",
+    letters: "ABCD",
+    connecting: "Connecting to Claude...", openOnClaude: "Open this page on claude.ai to use it.",
+    notPhoto: "That file isn't a photo. Try a JPG, PNG, WebP or GIF.",
+    badType: "That type of photo isn't supported. Try a JPG, PNG, WebP or GIF.",
+    tooBig: mb => `That photo is too big. Use one under ${mb} MB.`,
+    errors: {
+      not_granted: "Claude wasn't allowed for this page. Reload and choose Allow to use it.",
+      sampling_disabled: "Claude isn't available on this account.",
+      rate_limited: "Too many questions too fast, or you've hit your usage limit. Wait a bit and try again.",
+      session_expired: "You've been signed out. Sign in to claude.ai again and reload.",
+      image_rejected: "A photo couldn't be read. Try a different one, or a smaller file.",
+      images_unavailable: "This view can't send photos to Claude.",
+      refused: "Claude couldn't help with that one. Try different material or a different question.",
+      empty_completion: "No answer came back. Try asking a bit differently.",
+      prompt_too_large: "That's too much at once. Use fewer photos or shorter notes.",
+      default: "Something went wrong on the way. Try again.",
+    },
+    noImagesHw: "This view can't send photos to Claude.", addPhotoStart: "Add a photo to start.", ready: "Ready.",
+    working: "Working on it...", stopped: "Stopped.", cutOff: "The answer got cut off. Ask \"keep going\" to get the rest.",
+    thinking: "Thinking", yourAnswer: "Your answer", yourPhoto: "Your photo", uploaded: "Your uploaded photo", swap: "Tap to use a different photo",
+    noPhotosHere: "Photos can't be sent from here, so type your topics instead.",
+    maxPhotos: n => `You can add up to ${n} photos.`,
+    photosAdded: (n, max) => `${n} of ${max} photos added.`,
+    photoHint: max => `Take or add photos of questions or notes (up to ${max}), or drop them here.`,
+    studyPhoto: i => `Study photo ${i}`, removePhoto: i => `Remove photo ${i}`,
+    typeToStart: "Type your topics or add a photo to start.",
+    writing: "Writing questions...", wrote: n => `Wrote ${n} question${n > 1 ? "s" : ""}...`,
+    thinkingMaterial: "Thinking about your material",
+    noQuestions: "Couldn't turn that into questions. Try again, or add more detail about the topics.",
+    tooFew: "Couldn't build a full quiz from that. Try again, or add more detail about the topics.",
+    practiceIntroEx: "Here's what you'll get, using the water cycle as an example. Try each question first, then open the answer.",
+    practiceIntro: "Try each one in your head or on paper first, then open the answer.",
+    showAnswer: "Show answer", hideAnswer: "Hide answer",
+    reading: "Reading your material", nReady: (n, total) => `${n} of ${total} questions ready`,
+    qPos: (i, n) => `Question ${i} of ${n}`, answered: (a, n) => `${a} of ${n} answered`,
+    dotLabel: (k, done) => `Question ${k}${done ? ", answered" : ""}`,
+    finishBlank: n => `Finish with ${n} blank?`,
+    scores: ["Perfect score!", "Great job", "Getting there", "Keep practicing", "Let's go over it"],
+    timeRanOut: "Time ran out", finishedIn: time => `Finished in ${time}`, nWrong: n => `${n} wrong`, nBlank: n => `${n} left blank`,
+    correct: "Correct", wrong: "Wrong", blank: "Blank", questionN: i => `Question ${i}`,
+    yoursRight: "Your answer · right", rightAnswer: "Right answer", yours: "Your answer",
+    min5: "5 minutes left", min1: "1 minute left", timesUp: "Time's up. Your quiz was handed in.", done: "Done",
+    zoomIn: "Zoom in on the problem", wholePhoto: "Show the whole photo", problemFrom: i => `The problem from photo ${i}`,
+    exPhoto: "📷  Worksheet photo: \"4. Solve for x:  3x + 7 = 22\"",
+    exQ: "Walk me through · \"I don't get number 4\"",
+    exA: `Number 4 asks you to find what **x** is in **3x + 7 = 22**.
+
+1. **Get the x part alone.** Something is being added to 3x (the 7), so take it away from both sides: 3x + 7 − 7 = 22 − 7, which gives **3x = 15**.
+2. **Undo the multiplying.** 3x means 3 × x, so divide both sides by 3: x = 15 ÷ 3.
+3. **Check it.** Put 5 back in: 3 × 5 + 7 = 15 + 7 = 22 ✓
+
+**x = 5**`,
+    examplePractice: [
+      { q: "What is evaporation, and where does the energy for it come from?", a: "Evaporation is when liquid water turns into water vapor, a gas. The **Sun's heat** gives the water the energy to do it." },
+      { q: "Why do clouds form high in the sky instead of near the ground?", a: "Air gets colder as it rises. Cold air can't hold as much water vapor, so the vapor **condenses** into tiny droplets, and lots of droplets together make a cloud." },
+      { q: "A puddle dries up faster on a hot, windy day than on a cool, calm day. Explain why.", a: "Heat gives the water more energy to evaporate, and the wind blows the water vapor away from the puddle so more water can evaporate." },
+    ],
+  },
+  he: {
+    tagline: "לומדים נושא שפספסתם בכיתה, מקבלים עזרה בשיעורי בית מתמונה, או מתכוננים למבחן עם שאלות תרגול ובוחן עם שעון.",
+    menu: "תפריט", navLearn: "תלמד אותי", navSettings: "הגדרות", navNow: "answers clanker, NOW",
+    talkStyle: "סגנון דיבור", stylePolite: "דיבור מנומס", styleGenz: "סלנג של דור Z",
+    styleHint: "איך Claude מדבר בשיעורים, בהסברים ובתשובות. העובדות והתשובות נשארות אותו דבר.",
+    nowWhat: "כתבו או צלמו את השאלה", nowPh: "למשל: כמה זה 15% מ-80?", nowPhoto: "+ הוסף תמונה של השאלה",
+    nowGo: "תשובה עכשיו", nowStart: "כתבו שאלה או הוסיפו תמונה.", nowTitle: "תשובות",
+    nowExQ: "כמה זה 15% מ-80?", nowExA: "**12**\n\n15% זה 15 מתוך 100, אז 0.15 × 80 = 12.",
+    learnQuiz: "בוחן על השיעור (בינוני)", nextQuizTitle: "הבוחן הבא שלך",
+    levelName: { easy: "קל", medium: "בינוני", hard: "קשה" },
+    nextQuizText: (r, n, lvl) => `ענית נכון על ${r} מתוך ${n}, אז הבוחן הבא הוא ברמה ${lvl}.`,
+    nextQuizReason: { easy: "שאלות קלות יותר כדי לחזק את הבסיס.", medium: "שאלות באותה רמה כדי שזה ייקלט.", hard: "שאלות קשות יותר כדי לאתגר אותך." },
+    nextQuizGo: lvl => `להתחיל את הבוחן הבא (${lvl})`, diffIs: lvl => `רמת קושי: ${lvl}`,
+    listen: "הקשבה", stopListen: "עצור", voice: "הקראה",
+    ttsAuto: "להקריא אוטומטית שלבים, שאלות ותשובות חדשים",
+    ttsSpeed: "מהירות", slow: "איטי", normal: "רגיל", fast: "מהיר", ttsTest: "לנסות את הקול",
+    ttsSample: "שלום! אני אקריא לך את השיעורים, השאלות והתשובות.",
+    noTts: "הדפדפן הזה לא יכול להקריא טקסט.",
+    noVoice: "אין במכשיר הזה קול בעברית, אז ההקראה עלולה להישמע לא נכון. אפשר להוסיף קול בעברית בהגדרות השפה או הדיבור של המכשיר.",
+    noHeVoice: "אין במכשיר הזה קול בעברית, אז ההקראה עלולה להישמע לא נכון. אפשר להוסיף קול בעברית בהגדרות השפה או הדיבור של המכשיר.",
+    optionN: l => `תשובה ${l}`,
+    langHint: "הדף והתשובות של Claude יהיו בשפה הזאת.",
+    levelHint: "השיעורים, השאלות וההסברים נכתבים לרמה הזאת.",
+    learnWhat: "מה בא לך ללמוד?",
+    learnPh: "כתבו את הנושא או על מה המורה דיבר. לדוגמה: שברים: מה הם ואיך מוצאים שברים שווים.",
+    learnPhoto: "+ הוסף תמונה של הלוח או הספר",
+    learnPhotoHint: "לא חובה. תמונה של הלוח, המחברת או הספר עוזרת.",
+    learnPhotoAlt: "תמונה של השיעור", learnGo: "תלמד אותי", learnStart: "כתבו נושא או הוסיפו תמונה כדי להתחיל.",
+    lessonExTitle: "שיעור לדוגמה: שברים",
+    lessonExIntro: "ככה עובד שיעור. קוראים כל שלב, עונים על שאלת הבדיקה, ועוברים לשלב הבא. אפשר לנסות כאן.",
+    lessonIntro: "מתקדמים שלב אחרי שלב. אם משהו לא ברור, הקישו \"לא הבנתי\".",
+    yourLesson: "השיעור שלך", stepN: i => `שלב ${i}`, dontGet: "לא הבנתי", anotherWay: "הסבר בדרך אחרת",
+    quickCheck: "בדיקה קצרה", nextStep: "לשלב הבא", planning: "מתכנן את השיעור שלך", writingStep: "כותב את השלב הבא",
+    stepsReady: n => n === 1 ? "שלב אחד מוכן..." : `${n} שלבים מוכנים...`, rightMark: "נכון!", wrongMark: "לא בדיוק.",
+    learnedTitle: "מה למדת", checkScore: (r, n) => `ענית נכון על ${r} מתוך ${n} שאלות בדיקה.`,
+    learnPractice: "לתרגל את זה בהכנה למבחן", learnNew: "ללמוד משהו אחר",
+    askLessonPh: "שאלו כל דבר על השיעור",
+    noLesson: "לא הצלחתי לבנות שיעור מזה. נסו לתאר את הנושא בעוד כמה מילים.",
+    tools: "כלים", tabHw: "עזרה בשיעורי בית", tabExam: "הכנה למבחן", level: "רמה", language: "שפה",
+    lvlElem: "יסודי", lvlMid: "חטיבת ביניים", lvlHigh: "תיכון", lvlCollege: "אוניברסיטה",
+    dropTitle: "גררו תמונה לכאן", dropSub: "או הקישו כדי לצלם / לבחור קובץ. אפשר גם להדביק עם Ctrl+V.", choosePhoto: "בחירת תמונה",
+    need: "במה צריך עזרה?",
+    mExplain: "תסביר לי", mExplainSub: "על מה זה?", mSolve: "פתרון מודרך", mSolveSub: "שלב אחרי שלב",
+    mCheck: "תבדוק לי", mCheckSub: "מציאת טעויות", mQuiz: "תבחן אותי", mQuizSub: "שאלות תרגול",
+    specific: "משהו ספציפי? (לא חובה)", specificPh: "למשל: לא הבנתי את שאלה 4, או למה הקו עולה?",
+    helpGo: "תעזור לי עם זה", howItWorks: "איך זה עובד", example: "דוגמה", stop: "עצור",
+    followPh: "שאלת המשך, למשל: אפשר להסביר שוב את שלב 2?", ask: "שאל",
+    onExam: "מה יש במבחן?",
+    materialPh: "כתבו את הנושאים, הדביקו סיכומים, או פשוט הוסיפו תמונות למטה. לדוגמה: מבחן במדעים על התא. חלקי התא, מה עושים המיטוכונדריה והריבוזומים, מיטוזה מול מיוזה.",
+    photosShow: "מה יש בתמונות", kindQ: "שאלות מדף עבודה או ממבחן", kindN: "הסיכומים שלי או דף הכנה",
+    quizFrom: "שאלות לתרגול ולבוחן", qfNew: "שאלות חדשות באותו נושא, עם ציורים", qfPhotos: "השאלות מהתמונות שלי", drawing: "ציור של השאלה",
+    takePhoto: "צלם", addPhotos: "+ הוסף תמונות",
+    practiceGo: "צור שאלות תרגול", quizGo: "התחל בוחן של 10 דקות",
+    quizReady: "מכינים את הבוחן", clockStarts: "השעון יתחיל כשכל 10 השאלות יהיו מוכנות.", cancel: "ביטול",
+    timeLeft: "זמן שנשאר", jumpTo: "מעבר לשאלה", keyTip: "טיפ: אפשר ללחוץ 1, 2, 3 או 4 כדי לבחור תשובה.",
+    back: "הקודמת", next: "הבאה", finish: "סיים בוחן",
+    newQuiz: "בוחן חדש", retake: "לעשות שוב את הבוחן", missed: "בוחן חוזר על מה שטעיתי", review: "סקירה",
+    difficulty: "רמת קושי", dEasy: "קל", dMedium: "בינוני", dHard: "קשה",
+    explainGo: "תסביר לי את הטעויות", explaining: "מסביר את הטעויות שלך",
+    explainedN: (n, total) => `הוסברו ${n} מתוך ${total} טעויות...`,
+    deeperTitle: "הסבר שלב אחרי שלב", moreLike: "עוד שאלות כאלה",
+    practiceTitle: "שאלות תרגול", practiceMissed: "תרגול: מה שטעית בו",
+    practiceNote: "כשמרגישים מוכנים, עושים את הבוחן: 10 שאלות אמריקאיות, 10 דקות על השעון, ואז ציון עם הסבר לכל שאלה.",
+    moreGo: "עוד שאלות", quizGo2: "לבוחן של 10 דקות",
+    letters: "אבגד",
+    connecting: "מתחבר ל-Claude...", openOnClaude: "צריך לפתוח את הדף ב-claude.ai כדי להשתמש בו.",
+    notPhoto: "הקובץ הזה לא תמונה. נסו JPG, PNG, WebP או GIF.",
+    badType: "סוג התמונה הזה לא נתמך. נסו JPG, PNG, WebP או GIF.",
+    tooBig: mb => `התמונה גדולה מדי. השתמשו בתמונה של עד ${mb} MB.`,
+    errors: {
+      not_granted: "לא אישרת ל-Claude לעבוד בדף הזה. טענו את הדף מחדש ובחרו Allow.",
+      sampling_disabled: "Claude לא זמין בחשבון הזה.",
+      rate_limited: "יותר מדי שאלות מהר מדי, או שהגעת למגבלת השימוש. חכו קצת ונסו שוב.",
+      session_expired: "התנתקת. היכנסו שוב ל-claude.ai וטענו את הדף מחדש.",
+      image_rejected: "אי אפשר היה לקרוא תמונה. נסו תמונה אחרת או קובץ קטן יותר.",
+      images_unavailable: "מכאן אי אפשר לשלוח תמונות ל-Claude.",
+      refused: "Claude לא יכול לעזור עם זה. נסו חומר אחר או שאלה אחרת.",
+      empty_completion: "לא התקבלה תשובה. נסו לשאול קצת אחרת.",
+      prompt_too_large: "זה יותר מדי בבת אחת. השתמשו בפחות תמונות או בסיכום קצר יותר.",
+      default: "משהו השתבש בדרך. נסו שוב.",
+    },
+    noImagesHw: "מכאן אי אפשר לשלוח תמונות ל-Claude.", addPhotoStart: "הוסיפו תמונה כדי להתחיל.", ready: "מוכן.",
+    working: "עובד על זה...", stopped: "נעצר.", cutOff: "התשובה נקטעה. כתבו \"תמשיך\" כדי לקבל את ההמשך.",
+    thinking: "חושב", yourAnswer: "התשובה שלך", yourPhoto: "התמונה שלך", uploaded: "התמונה שהעלית", swap: "הקישו כדי להחליף תמונה",
+    noPhotosHere: "מכאן אי אפשר לשלוח תמונות, אז כתבו את הנושאים.",
+    maxPhotos: n => `אפשר להוסיף עד ${n} תמונות.`,
+    photosAdded: (n, max) => `נוספו ${n} מתוך ${max} תמונות.`,
+    photoHint: max => `צלמו או הוסיפו תמונות של שאלות או סיכומים (עד ${max}), או גררו אותן לכאן.`,
+    studyPhoto: i => `תמונה ${i}`, removePhoto: i => `הסרת תמונה ${i}`,
+    typeToStart: "כתבו נושאים או הוסיפו תמונה כדי להתחיל.",
+    writing: "כותב שאלות...", wrote: n => n === 1 ? "נכתבה שאלה אחת..." : `נכתבו ${n} שאלות...`,
+    thinkingMaterial: "חושב על החומר שלך",
+    noQuestions: "לא הצלחתי להפוך את זה לשאלות. נסו שוב, או הוסיפו עוד פרטים על הנושאים.",
+    tooFew: "לא הצלחתי לבנות בוחן שלם מזה. נסו שוב, או הוסיפו עוד פרטים על הנושאים.",
+    practiceIntroEx: "ככה זה ייראה, עם מחזור המים כדוגמה. נסו לענות על כל שאלה קודם, ואז פתחו את התשובה.",
+    practiceIntro: "נסו לענות על כל שאלה בראש או על דף, ואז פתחו את התשובה.",
+    showAnswer: "הצג תשובה", hideAnswer: "הסתר תשובה",
+    reading: "קורא את החומר שלך", nReady: (n, total) => `${n} מתוך ${total} שאלות מוכנות`,
+    qPos: (i, n) => `שאלה ${i} מתוך ${n}`, answered: (a, n) => `ענית על ${a} מתוך ${n}`,
+    dotLabel: (k, done) => `שאלה ${k}${done ? ", נענתה" : ""}`,
+    finishBlank: n => n === 1 ? "לסיים עם שאלה אחת ריקה?" : `לסיים עם ${n} שאלות ריקות?`,
+    scores: ["ציון מושלם!", "עבודה מעולה", "בדרך הנכונה", "ממשיכים לתרגל", "בואו נעבור על זה"],
+    timeRanOut: "נגמר הזמן", finishedIn: time => `סיימת ב-${time}`, nWrong: n => `${n} שגויות`, nBlank: n => `${n} ריקות`,
+    correct: "נכון", wrong: "שגוי", blank: "ריק", questionN: i => `שאלה ${i}`,
+    yoursRight: "התשובה שלך · נכונה", rightAnswer: "התשובה הנכונה", yours: "התשובה שלך",
+    min5: "נשארו 5 דקות", min1: "נשארה דקה אחת", timesUp: "נגמר הזמן. הבוחן הוגש.", done: "הסתיים",
+    zoomIn: "התקרב לשאלה", wholePhoto: "הצג את כל התמונה", problemFrom: i => `השאלה מתמונה ${i}`,
+    exPhoto: "📷  צילום של דף עבודה: \"4. פתרו: 3x + 7 = 22\"",
+    exQ: "פתרון מודרך · \"לא הבנתי את 4\"",
+    exA: `בשאלה 4 צריך למצוא כמה זה **x** במשוואה **3x + 7 = 22**.
+
+1. **משאירים את x לבד.** ל-3x מחובר 7, אז מחסירים 7 משני הצדדים: 3x + 7 − 7 = 22 − 7, ומקבלים **3x = 15**.
+2. **מבטלים את הכפל.** 3x זה 3 × x, אז מחלקים את שני הצדדים ב-3: x = 15 ÷ 3.
+3. **בודקים.** מציבים 5: 3 × 5 + 7 = 15 + 7 = 22 ✓
+
+**x = 5**`,
+    examplePractice: [
+      { q: "מה זה אידוי, ומאיפה מגיעה האנרגיה לתהליך?", a: "אידוי הוא מעבר של מים נוזליים לאדי מים, שהם גז. **החום של השמש** נותן למים את האנרגיה לזה." },
+      { q: "למה עננים נוצרים גבוה בשמיים ולא קרוב לקרקע?", a: "האוויר מתקרר כשהוא עולה. אוויר קר לא יכול להחזיק הרבה אדי מים, אז האדים **מתעבים** לטיפות קטנטנות, והרבה טיפות ביחד יוצרות ענן." },
+      { q: "שלולית מתייבשת מהר יותר ביום חם ועם רוח מאשר ביום קריר ושקט. הסבירו למה.", a: "החום נותן למים יותר אנרגיה להתאדות, והרוח מרחיקה את אדי המים מהשלולית, כך שעוד מים יכולים להתאדות." },
+    ],
+  },
+};
+
+// ---------- Shared ----------
+const QUIZ_SIZE = 10;
+const MIN_QUIZ = 5;
+let lang = "en";
+let sample = null;
+let sampleState = "pending";   // pending | ready | missing
+let imgCaps = null;            // what photos this view can send, or null
+let activeTab = "learn";
+const t = () => STR[lang] || STR.en;
+
+// ---------- More languages ----------
+// English and Hebrew are written into the page. The others are translated by Claude the first
+// time someone picks them, then kept on this device.
+const LANGS = {
+  en: { name: "English", code: "en-US" },
+  he: { name: "Hebrew", code: "he-IL", dir: "rtl" },
+  es: { name: "Spanish", native: "Español", code: "es-ES" },
+  pt: { name: "Portuguese", native: "Português", code: "pt-BR" },
+  ar: { name: "Arabic", native: "العربية", code: "ar-SA", dir: "rtl" },
+  zh: { name: "Simplified Chinese", native: "中文", code: "zh-CN" },
+  ja: { name: "Japanese", native: "日本語", code: "ja-JP" },
+  el: { name: "Greek", native: "Ελληνικά", code: "el-GR" },
+  ru: { name: "Russian", native: "Русский", code: "ru-RU" },
+};
+const UI_VERSION = "1";
+// The English sentences that have numbers or words filled in, with {0}, {1}, {2} where they go.
+const TPL_EN = {
+  answered: "{0} of {1} answered", checkScore: "You got {0} of {1} quick checks right.", diffIs: "Difficulty: {0}",
+  dotLabel: "Question {0}", dotLabelDone: "Question {0}, answered", explainedN: "Explained {0} of {1} mistakes...",
+  finishBlank: "Finish with {0} blank?", finishedIn: "Finished in {0}", maxPhotos: "You can add up to {0} photos.",
+  nBlank: "{0} left blank", nReady: "{0} of {1} questions ready", nWrong: "{0} wrong", nextQuizGo: "Start the next quiz ({0})",
+  nextQuizText: "You got {0} of {1} right, so your next quiz is {2}.", optionN: "Option {0}",
+  photoHint: "Take or add photos of questions or notes (up to {0}), or drop them here.", photosAdded: "{0} of {1} photos added.",
+  problemFrom: "The problem from photo {0}", qPos: "Question {0} of {1}", questionN: "Question {0}", removePhoto: "Remove photo {0}",
+  stepN: "Step {0}", stepsReady: "{0} steps ready...", studyPhoto: "Study photo {0}",
+  tooBig: "That photo is too big. Use one under {0} MB.", wrote: "Wrote {0} questions...",
+};
+const fillTpl = tpl => (...args) => String(tpl).replace(/\{(\d)\}/g, (_, i) => args[i] ?? "");
+let pendingTranslate = null;
+let translating = null;
+
+function uiSource() {
+  const src = {};
+  for (const [k, v] of Object.entries(STR.en)) if (typeof v !== "function" && k !== "noHeVoice") src[k] = v;
+  src.templates = TPL_EN;
+  src.exampleLesson = EXAMPLE_LESSON.en.map(({ title, explain, check }) => ({ title, explain, check }));
+  return src;
+}
+
+// Builds a language from Claude's translation, keeping English for anything missing or broken.
+function buildLang(code, tr) {
+  const pick = (a, b) => (typeof a === "string" && a.trim() ? a : b);
+  const out = {};
+  for (const [k, v] of Object.entries(STR.en)) {
+    if (typeof v === "string") out[k] = pick(tr?.[k], v);
+    else if (Array.isArray(v) && typeof v[0] === "string") out[k] = Array.isArray(tr?.[k]) && tr[k].length === v.length ? tr[k].map((x, i) => pick(x, v[i])) : v;
+    else if (v && typeof v === "object" && !Array.isArray(v)) out[k] = Object.fromEntries(Object.keys(v).map(kk => [kk, pick(tr?.[k]?.[kk], v[kk])]));
+    else out[k] = v;
+  }
+  const okPractice = Array.isArray(tr?.examplePractice) && tr.examplePractice.length === STR.en.examplePractice.length &&
+    tr.examplePractice.every(p => typeof p?.q === "string" && typeof p?.a === "string");
+  out.examplePractice = okPractice ? tr.examplePractice : STR.en.examplePractice;
+  const T = {};
+  for (const [k, tpl] of Object.entries(TPL_EN)) {
+    const cand = tr?.templates?.[k];
+    T[k] = typeof cand === "string" && (tpl.match(/\{\d\}/g) || []).every(p => cand.includes(p)) ? cand : tpl;
+  }
+  for (const k of Object.keys(TPL_EN)) out[k] = fillTpl(T[k]);
+  out.dotLabel = (n, done) => fillTpl(done ? T.dotLabelDone : T.dotLabel)(n);
+  if ([...String(out.letters)].length !== 4) out.letters = "ABCD";
+  STR[code] = out;
+  const lesson = tr?.exampleLesson;
+  const okLesson = Array.isArray(lesson) && lesson.length === EXAMPLE_LESSON.en.length && lesson.every(s =>
+    typeof s?.title === "string" && typeof s?.explain === "string" && Array.isArray(s?.check?.options) && s.check.options.length === 4);
+  EXAMPLE_LESSON[code] = okLesson
+    ? lesson.map((s, i) => ({ ...EXAMPLE_LESSON.en[i], title: s.title, explain: s.explain, check: { ...EXAMPLE_LESSON.en[i].check, q: s.check.q, options: s.check.options, why: s.check.why } }))
+    : EXAMPLE_LESSON.en;
+}
+
+function setLanguage(code) {
+  lang = LANGS[code] ? code : "en";
+  if (!STR[lang]) {
+    let cached = null;
+    try { cached = JSON.parse(load(`hl-ui-${lang}-v${UI_VERSION}`) || "null"); } catch {}
+    buildLang(lang, cached);
+    pendingTranslate = cached ? null : lang;
+  }
+  els.lang.value = lang;
+}
+
+async function translateUI(code) {
+  if (!sample || translating || code !== lang) return;
+  translating = code;
+  const name = LANGS[code].name;
+  els.langNote.hidden = false;
+  els.langNote.textContent = `Translating the page into ${LANGS[code].native}...`;
+  try {
+    const tr = await sample.json(
+      `Translate the interface text of a study app for school students into ${name}. ` +
+      `Reply with only a JSON object with exactly the same keys and structure as the input below. Translate every string value naturally and briefly, like app interface text. ` +
+      `Keep placeholders like {0}, {1} and {2} exactly as they are. Keep "Claude", "claude.ai", "Ctrl+V", "Allow", "MB", file types like JPG and PNG, and the name "answers clanker, NOW" unchanged. ` +
+      `Keep markdown such as ** and line breaks, and keep all math the same. For "letters", give the 4 letters (as one string) that ${name} uses to label multiple-choice answers, or "ABCD" if Latin letters are normal.\n\n` +
+      JSON.stringify(uiSource()),
+      { cache: { gcTime: 86400000 } },
+    );
+    if (!tr || typeof tr !== "object") throw { code: "invalid_json" };
+    store(`hl-ui-${code}-v${UI_VERSION}`, JSON.stringify(tr));
+    buildLang(code, tr);
+    if (pendingTranslate === code) pendingTranslate = null;
+    els.langNote.hidden = true;
+    if (lang === code) relabel();
+  } catch (e) {
+    els.langNote.textContent = `Couldn't translate the page right now, so it stays in English. Claude still answers in ${LANGS[code].native}. Pick the language again to try once more.`;
+  } finally {
+    translating = null;
+  }
+}
+function maybeTranslate() { if (pendingTranslate && pendingTranslate === lang) translateUI(lang); }
+
+function store(key, value) { try { localStorage.setItem(key, value); } catch {} }
+function load(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function esc(text) { const d = document.createElement("div"); d.textContent = text; return d.innerHTML; }
+
+function render(md) {
+  if (window.marked && window.DOMPurify) {
+    return DOMPurify.sanitize(marked.parse(md), { ADD_TAGS: ["details", "summary"] });
+  }
+  return `<p style="white-space:pre-wrap">${esc(md)}</p>`;
+}
+function renderInline(md) {
+  if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parseInline(md));
+  return esc(md);
+}
+function fmt(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+function shuffle(list) {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+function baseStatus() {
+  if (sample) return null;
+  return sampleState === "pending" ? t().connecting : t().openOnClaude;
+}
+function photoProblem(blob) {
+  if (!blob || !blob.type.startsWith("image/")) return t().notPhoto;
+  if (imgCaps?.mediaTypes && !imgCaps.mediaTypes.includes(blob.type)) return t().badType;
+  if (imgCaps?.maxInputBytes && blob.size > imgCaps.maxInputBytes) return t().tooBig(Math.floor(imgCaps.maxInputBytes / 1e6));
+  return null;
+}
+function copyFor(code) { return t().errors[code] || t().errors.default; }
+
+// ---------- Read aloud (the device's own speech voice) ----------
+const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+const tts = { auto: false, rate: 1, btn: null };
+const SPEAKER_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+
+function pickVoice() {
+  if (!canSpeak) return null;
+  const code = lang;
+  const voices = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().replace("_", "-").startsWith(code) || (code === "he" && v.lang.toLowerCase().startsWith("iw")));
+  return voices.find(v => v.localService) || voices[0] || null;
+}
+
+// What a reader would say: the text of rendered markdown, with hidden answers left out.
+function plainText(md) {
+  const d = document.createElement("div");
+  d.innerHTML = render(md);
+  d.querySelectorAll("details").forEach(x => x.remove());
+  d.querySelectorAll("p, li, h1, h2, h3, tr").forEach(x => x.append(" \n"));
+  return d.textContent.trim();
+}
+function plainInline(md) {
+  const d = document.createElement("div");
+  d.innerHTML = renderInline(md);
+  return d.textContent.trim();
+}
+function mcSpeech(q, options) {
+  const s = t();
+  return `${plainInline(q)}\n` + options.map((o, k) => `${s.optionN(s.letters[k])}: ${plainInline(o)}.`).join("\n");
+}
+
+// Long text is spoken in short pieces; some browsers stop a single long utterance partway.
+function speechChunks(text) {
+  const out = [];
+  let cur = "";
+  for (const part of text.replace(/\s+/g, " ").split(/(?<=[.!?:;])\s+/)) {
+    if (cur && (cur + " " + part).length > 220) { out.push(cur); cur = part; }
+    else cur = cur ? cur + " " + part : part;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+function setSpeakBtn(b, on) {
+  if (!b || !b.classList.contains("speak")) return;
+  b.setAttribute("aria-pressed", String(on));
+  b.innerHTML = SPEAKER_SVG + `<span>${esc(on ? t().stopListen : t().listen)}</span>`;
+}
+function stopSpeaking() {
+  if (!canSpeak) return;
+  speechSynthesis.cancel();
+  setSpeakBtn(tts.btn, false);
+  tts.btn = null;
+}
+function speak(text, btn = null) {
+  if (!canSpeak || !text || !text.trim()) return;
+  const same = tts.btn === btn && speechSynthesis.speaking;
+  stopSpeaking();
+  if (same) return;
+  const voice = pickVoice();
+  const pieces = speechChunks(text);
+  tts.btn = btn;
+  setSpeakBtn(btn, true);
+  const done = () => { if (tts.btn === btn) { setSpeakBtn(btn, false); tts.btn = null; } };
+  pieces.forEach((piece, k) => {
+    const u = new SpeechSynthesisUtterance(piece);
+    u.lang = LANGS[lang].code;
+    if (voice) u.voice = voice;
+    u.rate = tts.rate;
+    if (k === pieces.length - 1) u.onend = done;
+    u.onerror = done;
+    speechSynthesis.speak(u);
+  });
+}
+function speakBtn(getText) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ghost small speak self-start";
+  b.hidden = !canSpeak;
+  setSpeakBtn(b, false);
+  b.addEventListener("click", () => speak(getText(), b));
+  return b;
+}
+function updateTtsNote() {
+  els.ttsNote.textContent = !canSpeak ? t().noTts
+    : lang !== "en" && speechSynthesis.getVoices().length && !pickVoice() ? t().noVoice : "";
+  els.ttsNote.hidden = !els.ttsNote.textContent;
+}
+function langLine() {
+  return (lang !== "en"
+    ? ` Write everything the student will read in ${LANGS[lang].name}: questions, answer options, answers and explanations. Keep any JSON keys in English.`
+    : "") + styleLine();
+}
+function talkStyle() { return document.querySelector('input[name="talk"]:checked')?.value || "polite"; }
+// How Claude sounds, from Settings. Only the tone changes, never the facts.
+function styleLine() {
+  if (talkStyle() !== "genz") return " Speak in a warm, polite, encouraging tone, like a kind teacher.";
+  if (lang !== "en" && lang !== "he") {
+    const name = LANGS[lang].name;
+    return ` Talk like a fun teenage friend who speaks ${name}: casual and playful, with the slang teens really use in ${name} and an emoji now and then. No swearing. Keep every fact, step and answer correct and clear, and keep slang out of math, answer options and JSON keys.`;
+  }
+  return lang === "he"
+    ? " Talk like a fun Israeli teenager friend: casual and playful, with Hebrew teen slang (like סבבה, וואלה, אחי, פצצה, יאללה, חזק) and an emoji now and then. No swearing. Keep every fact, step and answer correct and clear, and keep slang out of math, answer options and JSON keys."
+    : " Talk like a fun Gen Z friend: casual and playful, with Gen Z slang (like no cap, lowkey, fr, bet, it's giving, slay) and an emoji now and then. No swearing. Keep every fact, step and answer correct and clear, and keep slang out of math, answer options and JSON keys.";
+}
+
+// ---------- Language ----------
+function applyStatic() {
+  const s = t();
+  document.documentElement.lang = lang;
+  document.documentElement.dir = LANGS[lang].dir || "ltr";
+  document.querySelectorAll("[data-t]").forEach(el => { el.textContent = s[el.dataset.t]; });
+  document.querySelectorAll("[data-t-ph]").forEach(el => { el.placeholder = s[el.dataset.tPh]; });
+  document.querySelectorAll("[data-t-aria]").forEach(el => el.setAttribute("aria-label", s[el.dataset.tAria]));
+}
+
+// Redraws everything the page wrote itself. Claude's answers stay in the language they were written in.
+function relabel() {
+  applyStatic();
+  if (!hw.log.length) showExample();
+  else els.sheetTitle.textContent = t().yourAnswer;
+  const swap = els.dropInner.querySelector(".swap");
+  if (swap) swap.textContent = t().swap;
+  if (!exam.busy) exam.practice.length ? renderPractice() : showPracticeExample();
+  if (quiz.state === "active") renderQuestion();
+  if (quiz.state === "done") renderResults();
+  if (quiz.state === "loading") els.quizLoadText.textContent = t().reading;
+  resetFinishConfirm();
+  renderThumbs();
+  updateHw();
+  updateExam();
+  renderLesson();
+  renderLearnThumb();
+  updateLearn();
+  updateTtsNote();
+  if (!now.busy) renderNow();
+  renderNowThumb();
+  updateNow();
+  document.querySelectorAll(".speak").forEach(b => setSpeakBtn(b, b === tts.btn));
+}
+
+els.lang.addEventListener("change", () => {
+  setLanguage(els.lang.value);
+  store("hl-lang", lang);
+  relabel();
+  // A language picked again after a failed translation tries once more
+  if (lang !== "en" && lang !== "he" && !load(`hl-ui-${lang}-v${UI_VERSION}`)) pendingTranslate = lang;
+  maybeTranslate();
+});
+
+// ---------- Menu ----------
+const PANELS = ["learn", "hw", "exam", "now", "settings"];
+const cap = s => s[0].toUpperCase() + s.slice(1);
+
+function showTab(name) {
+  stopSpeaking();
+  activeTab = PANELS.includes(name) ? name : "learn";
+  PANELS.forEach(p => {
+    els["panel" + cap(p)].hidden = p !== activeTab;
+    const b = els["nav" + cap(p)];
+    if (p === activeTab) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  if (activeTab === "exam" && quiz.state !== "active") els.tabTimer.hidden = true;
+  if (activeTab !== "settings") store("hl-tab", activeTab);
+  closeMenu();
+}
+function openMenu() {
+  els.side.classList.add("open");
+  els.scrim.hidden = false;
+  els.menuBtn.setAttribute("aria-expanded", "true");
+  els.side.querySelector("[aria-current]")?.focus();
+}
+function closeMenu() {
+  if (!els.side.classList.contains("open")) return;
+  els.side.classList.remove("open");
+  els.scrim.hidden = true;
+  els.menuBtn.setAttribute("aria-expanded", "false");
+  els.menuBtn.focus();
+}
+PANELS.forEach(p => els["nav" + cap(p)].addEventListener("click", () => { showTab(p); window.scrollTo({ top: 0 }); }));
+els.menuBtn.addEventListener("click", () => els.side.classList.contains("open") ? closeMenu() : openMenu());
+els.scrim.addEventListener("click", closeMenu);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenu(); });
+
+// ---------- Homework help ----------
+const hw = { blob: null, url: null, threadUrl: null, turns: [], log: [], ctl: null, busy: false };
+
+const MODES = {
+  explain: () => "Explain what this is about. Start with one or two sentences saying what you see in the picture, then explain the ideas clearly, with a simple example if it helps.",
+  solve: () => "Walk me through solving this step by step. Start by saying in one sentence what the problem asks. Number the steps, explain WHY each step works, and give the final answer at the end in bold. If there are several problems, do the one I asked about, or the first one.",
+  check: () => "This is my own work. Check it carefully. Say what I got right, point out each mistake and where it happens, and explain how to fix it. Be encouraging but honest. Don't just rewrite the whole thing.",
+  quiz: () => `Make 3 short practice questions about the same topic as this picture, getting a little harder each time. Put each answer inside an HTML <details><summary>${t().showAnswer}</summary> ... </details> block so I can try first.`,
+};
+
+const RULES = grade =>
+  `You are a friendly, patient tutor helping a ${grade} student with schoolwork. ` +
+  `Write in plain, simple language for that level. Use short paragraphs, numbered steps or bullet points, and **bold** for key words. ` +
+  `Do NOT use LaTeX or $ signs for math; write math in plain text with symbols like ×, ÷, ², √, ≤, π. ` +
+  `If the photo is blurry or cut off, say what you can read and ask for a clearer photo of the missing part. ` +
+  `Keep it focused: no long introductions.` + (lang !== "en" ? ` Answer in ${LANGS[lang].name}.` : "") + styleLine();
+
+function addQ(text) {
+  const q = document.createElement("div");
+  q.className = "q";
+  q.textContent = text;
+  els.thread.append(q);
+}
+function addA(md) {
+  const a = document.createElement("div");
+  a.className = "a";
+  a.innerHTML = md ? render(md) : `<p class="thinking">${esc(t().thinking)}</p>`;
+  els.thread.append(a);
+  return a;
+}
+
+function showExample() {
+  els.sheetTitle.textContent = t().howItWorks;
+  els.exampleChip.hidden = false;
+  els.thread.innerHTML = "";
+  const photo = document.createElement("div");
+  photo.className = "ex-photo";
+  photo.textContent = t().exPhoto;
+  els.thread.append(photo);
+  addQ(t().exQ);
+  addA(t().exA).after(speakBtn(() => plainText(t().exA)));
+}
+
+function rebuildHw() {
+  els.thread.innerHTML = "";
+  hw.log.forEach(m => {
+    if (m.k === "q") addQ(m.t);
+    else addA(m.t).after(speakBtn(() => plainText(m.t)));
+  });
+  els.exampleChip.hidden = true;
+  els.sheetTitle.textContent = t().yourAnswer;
+  els.follow.hidden = !hw.turns.some(turn => turn.role === "assistant");
+}
+
+function setHwImage(blob) {
+  const problem = photoProblem(blob);
+  if (problem) { showHwError(problem); return; }
+  hw.blob = blob;
+  if (hw.url) URL.revokeObjectURL(hw.url);
+  hw.url = URL.createObjectURL(blob);
+  els.dropInner.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = hw.url;
+  img.alt = t().uploaded;
+  const swap = document.createElement("div");
+  swap.className = "swap";
+  swap.textContent = t().swap;
+  els.dropInner.append(img, swap);
+  els.drop.classList.add("has-image");
+  hideHwError();
+  updateHw();
+}
+
+function updateHw() {
+  els.go.disabled = hw.busy || !hw.blob || !sample || !imgCaps;
+  if (hw.busy) return;
+  els.status.textContent = baseStatus() || (!imgCaps ? t().noImagesHw : !hw.blob ? t().addPhotoStart : t().ready);
+}
+
+function showHwError(msg) { els.err.textContent = msg; els.err.hidden = false; }
+function hideHwError() { els.err.hidden = true; }
+
+async function askHw(input, opts, bubble) {
+  hw.busy = true;
+  hideHwError();
+  updateHw();
+  els.status.textContent = t().working;
+  els.followGo.disabled = true;
+  els.stop.hidden = false;
+  hw.ctl = new AbortController();
+  const keep = text => {
+    hw.turns.push({ role: "assistant", content: text });
+    hw.log.push({ k: "a", t: text });
+  };
+  try {
+    const { text, truncated } = await sample(input, {
+      ...opts,
+      cache: false,
+      signal: hw.ctl.signal,
+      onText: ({ text }) => { bubble.innerHTML = render(text); },
+    });
+    keep(text);
+    const listen = speakBtn(() => plainText(text));
+    bubble.after(listen);
+    if (tts.auto) listen.click();
+    if (truncated) showHwError(t().cutOff);
+  } catch (e) {
+    const partial = e.code !== "refused" && e.text;
+    bubble.innerHTML = partial ? render(e.text) : e.code === "cancelled" ? `<p class="hint">${esc(t().stopped)}</p>` : "";
+    if (partial) keep(e.text);
+    if (e.code !== "cancelled") showHwError(copyFor(e.code));
+  } finally {
+    hw.busy = false;
+    hw.ctl = null;
+    els.stop.hidden = true;
+    els.followGo.disabled = false;
+    els.follow.hidden = !hw.turns.some(turn => turn.role === "assistant");
+    updateHw();
+  }
+}
+
+els.go.addEventListener("click", () => {
+  if (!hw.blob || hw.busy || !sample) return;
+  const checked = document.querySelector('input[name="mode"]:checked');
+  const label = checked.nextElementSibling.querySelector("b").textContent.trim();
+  const extra = els.question.value.trim();
+
+  els.exampleChip.hidden = true;
+  els.sheetTitle.textContent = t().yourAnswer;
+  els.thread.innerHTML = "";
+  els.follow.hidden = true;
+
+  if (hw.threadUrl) URL.revokeObjectURL(hw.threadUrl);
+  hw.threadUrl = URL.createObjectURL(hw.blob);
+  const thumb = document.createElement("img");
+  thumb.className = "thread-photo";
+  thumb.src = hw.threadUrl;
+  thumb.alt = t().yourPhoto;
+  els.thread.append(thumb);
+
+  const q = label + (extra ? ` · "${extra}"` : "");
+  addQ(q);
+  hw.log = [{ k: "q", t: q }];
+  hw.turns = [{
+    role: "user",
+    content: `${RULES(els.grade.value)}\n\nThe attached image is a photo the student took of their schoolwork.\n\n${MODES[checked.value]()}` +
+      (extra ? `\n\nThe student also says: "${extra}"` : ""),
+  }];
+  askHw(hw.turns.slice(), { images: [hw.blob] }, addA());
+});
+
+els.follow.addEventListener("submit", e => {
+  e.preventDefault();
+  const text = els.followText.value.trim();
+  if (!text || hw.busy || !sample) return;
+  els.followText.value = "";
+  addQ(text);
+  hw.log.push({ k: "q", t: text });
+  hw.turns.push({ role: "user", content: text + "\n\n(Reminder: you can no longer see the photo, so rely on what you already described about it.)" });
+  if (hw.turns.length > 21) hw.turns.splice(3, 2);
+  askHw(hw.turns.slice(), {}, addA());
+});
+
+els.followText.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); els.follow.requestSubmit(); }
+});
+els.stop.addEventListener("click", () => hw.ctl?.abort());
+
+els.file.addEventListener("change", () => { if (els.file.files[0]) setHwImage(els.file.files[0]); els.file.value = ""; });
+["dragenter", "dragover"].forEach(type => els.drop.addEventListener(type, e => { e.preventDefault(); els.drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(type => els.drop.addEventListener(type, e => { e.preventDefault(); els.drop.classList.remove("over"); }));
+els.drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) setHwImage(f); });
+
+// ---------- Exam prep ----------
+const exam = { photos: [], practice: [], titleKey: "practiceTitle", busy: false, ctl: null };
+const quiz = {
+  state: "idle", prev: "idle",   // idle | loading | active | done
+  questions: [], answers: [], index: 0,
+  startedAt: 0, endsAt: 0, finishedAt: 0, timeUp: false,
+  timer: 0, ctl: null, confirmUntil: 0, confirmTimer: 0, announced: {},
+  photoUrls: [],                 // the photos this quiz was built from, for showing each problem
+  photoBlobs: [],
+  extra: {},                     // question index -> {explain, more} for questions the student missed
+  diff: "medium",                // this quiz's difficulty
+  lesson: null,                  // the Teach me lesson this quiz is about, if any
+  deeperCtl: null,
+};
+
+function photoMax() { return Math.max(1, Math.min(imgCaps?.maxCount || 5, 10)); }
+function photoBlobs() { return imgCaps && exam.photos.length ? exam.photos.map(p => p.blob) : null; }
+function hasMaterial() { return els.material.value.trim().length >= 3 || !!photoBlobs(); }
+function photoKind() { return document.querySelector('input[name="kind"]:checked').value; }
+function photosAreQuestions() { return !!photoBlobs() && photoKind() === "questions"; }
+function quizFrom() { return document.querySelector('input[name="quizFrom"]:checked').value; }
+// The quiz reuses the problems in the photos; otherwise Claude writes new questions and draws each one.
+function quizUsesPhotoProblems() { return photosAreQuestions() && quizFrom() === "photos"; }
+
+const DIFF = {
+  easy: "easy. Straightforward questions on the basic facts and ideas, one step each.",
+  medium: "medium. Questions that need real understanding, some with two or three steps.",
+  hard: "hard. Challenging questions with several steps that apply the ideas to new situations, like the hardest questions on a real test.",
+};
+function difficulty() { return document.querySelector('input[name="diff"]:checked').value; }
+function diffLine(d = difficulty()) { return `Difficulty: ${DIFF[d] || DIFF.medium}`; }
+// The next quiz's level from this one's score, counted out of 10: under 5 easy, 5 to 7 medium, 8 and up hard.
+function nextLevel(right, n) {
+  const score = n ? right / n * 10 : 0;
+  return score >= 8 ? "hard" : score >= 5 ? "medium" : "easy";
+}
+
+function addPhotos(files) {
+  hideExamError();
+  if (sampleState === "ready" && !imgCaps) { showExamError(t().noPhotosHere); return; }
+  const max = photoMax();
+  for (const f of files) {
+    if (exam.photos.length >= max) { showExamError(t().maxPhotos(max)); break; }
+    const problem = photoProblem(f);
+    if (problem) { showExamError(problem); continue; }
+    exam.photos.push({ blob: f, url: URL.createObjectURL(f) });
+  }
+  renderThumbs();
+  updateExam();
+}
+
+function renderThumbs() {
+  els.thumbs.innerHTML = "";
+  exam.photos.forEach((p, i) => {
+    const box = document.createElement("div");
+    box.className = "thumb";
+    const img = document.createElement("img");
+    img.src = p.url;
+    img.alt = t().studyPhoto(i + 1);
+    const x = document.createElement("button");
+    x.type = "button";
+    x.textContent = "×";
+    x.setAttribute("aria-label", t().removePhoto(i + 1));
+    x.addEventListener("click", () => {
+      URL.revokeObjectURL(p.url);
+      exam.photos.splice(i, 1);
+      renderThumbs();
+      updateExam();
+    });
+    box.append(img, x);
+    els.thumbs.append(box);
+  });
+  const max = photoMax();
+  els.photoHint.textContent = sampleState === "ready" && !imgCaps
+    ? t().noPhotosHere
+    : exam.photos.length ? t().photosAdded(exam.photos.length, max) : t().photoHint(max);
+}
+
+function showExamError(msg) {
+  els.examErr.textContent = msg;
+  els.examErr.hidden = false;
+  els.examErr.scrollIntoView({ block: "nearest" });
+}
+function hideExamError() { els.examErr.hidden = true; }
+
+function updateExam() {
+  const busy = exam.busy || quiz.state === "loading";
+  const can = !!sample && hasMaterial() && !busy;
+  [els.practiceGo, els.quizGo, els.quizGo2, els.moreGo, els.newQuiz, els.missedGo].forEach(b => { b.disabled = !can; });
+  els.retakeQuiz.disabled = busy;
+  els.deeperGo.disabled = !sample;
+  // After a quiz on a lesson, the follow-up quizzes need no exam material
+  const canAgain = !!sample && !busy && (!!quiz.lesson || hasMaterial());
+  [els.newQuiz, els.missedGo, els.nextQuizGo].forEach(b => { b.disabled = !canAgain; });
+  els.addPhoto.hidden = sampleState === "ready" && !imgCaps;
+  els.takePhoto.hidden = els.addPhoto.hidden;
+  els.kindBox.hidden = els.addPhoto.hidden;
+  els.quizFromBox.hidden = !(exam.photos.length && photoKind() === "questions");
+  if (!busy) els.examStatus.textContent = baseStatus() || (hasMaterial() ? t().ready : t().typeToStart);
+}
+
+function layoutExam() {
+  const s = quiz.state;
+  const inQuiz = s === "loading" || s === "active";
+  els.examDesk.hidden = inQuiz;
+  els.quizSheet.hidden = !inQuiz;
+  els.quizLoading.hidden = s !== "loading";
+  els.quizBody.hidden = s !== "active";
+  els.resultSheet.hidden = s !== "done";
+  els.practiceSheet.hidden = inQuiz || (s === "done" && !exam.practice.length && !exam.busy);
+  if (s === "active") els.tabTimer.hidden = false;
+  else if (activeTab === "exam" || s !== "done") els.tabTimer.hidden = true;
+}
+
+function setQuizState(s) {
+  quiz.state = s;
+  layoutExam();
+  updateExam();
+}
+
+// Prompts
+const PLAIN_MATH = "Write math in plain text with symbols like ×, ÷, ², √, ≤ and π. Do not use LaTeX or $ signs.";
+const bullets = list => list.map(x => "- " + x).join("\n");
+
+function materialBlock(lesson = null) {
+  if (lesson) return `The student just finished this lesson and is now being quizzed on it:\n"""\n${lesson.slice(0, 30000)}\n"""`;
+  const text = els.material.value.trim().slice(0, 30000);
+  const n = photoBlobs()?.length || 0;
+  const photos = `${n} photo${n > 1 ? "s" : ""}`;
+  let s = !n ? ""
+    : photosAreQuestions()
+      ? `The student attached ${photos} of questions from a worksheet, textbook or old test. Read every question carefully. The student doesn't have their notes, so use your own knowledge of the subject to get every answer right.\n\n`
+      : `The student attached ${photos} of their study material (notes, a study guide or textbook pages). Read ${n > 1 ? "them" : "it"} carefully and use what you can read.\n\n`;
+  s += text ? `What the student typed about the exam:\n"""\n${text}\n"""` : "The student didn't type anything, so use only the photos.";
+  return s + "\n\nIf the material is only a list of topics, use your own knowledge of those topics.";
+}
+
+function practicePrompt({ count, avoid, focus, fromPhotos }) {
+  return `You are a friendly tutor helping a ${els.grade.value} student study for an exam. Write for that level.\n\n${materialBlock()}\n\n` +
+    (fromPhotos
+      ? `Use the questions in the photos as the practice questions: copy each one as it is written (up to ${count}) and give the correct answer to each, in the same order. If there are fewer than 6, add similar questions on the same topics so there are at least 6. `
+      : (photosAreQuestions() ? `Write NEW questions like the ones in the photos: the same topics, the same kinds of problems and about the same difficulty, but with different numbers, words or examples. Don't copy them. ` : "") +
+        `Write ${count} practice questions that cover the most important ideas in this material. ${diffLine()}`) +
+    `Mix question styles: recall ("What is..."), explain ("Why does..."), and apply ("What would happen if..."). ` +
+    `If the subject has problems to solve, like math or physics, include some. ` +
+    `Each answer is short and clear: one to three sentences, or the worked steps for a problem. ${PLAIN_MATH}${langLine()}` +
+    (focus?.length ? `\n\nThe student just got these quiz questions wrong. Focus on the same ideas from a different angle, without repeating these questions:\n${bullets(focus)}` : "") +
+    (avoid?.length ? `\n\nDon't repeat any of these questions:\n${bullets(avoid)}` : "") +
+    `\n\nReply with exactly one JSON object per line and nothing else: no code fence, no numbering, no other text.\n{"q": "the question", "a": "the answer"}` +
+    (fromPhotos ? "" : drawingRules(`{"q": "Look at the drawing. What is x?", "a": "x = 5, because 3 × 5 + 7 = 22", "svg": "${SVG_SAMPLE}"}`));
+}
+
+function quizPrompt(avoid, focus, diff, lesson) {
+  const photoMode = quizUsesPhotoProblems() && !focus && !lesson;
+  return `You are writing a timed multiple-choice quiz for a ${els.grade.value} student who is studying for an exam. Write for that level.\n\n${materialBlock(lesson)}\n\n` +
+    (photoMode
+      ? `Build the quiz only from the problems in the photos: one multiple-choice question for each problem, in the order they appear, up to ${QUIZ_SIZE}. Don't make up new questions. If the photos have fewer than ${QUIZ_SIZE} problems, write fewer questions. If a problem has several parts, you may make one question per part. `
+      : (!lesson && photosAreQuestions() ? `Write NEW questions like the ones in the photos: the same topics, the same kinds of problems and about the same difficulty, but with different numbers, words or examples. Don't copy them. ` : "") +
+        `Write exactly ${QUIZ_SIZE} multiple-choice questions that test the most important ideas in this material: ${diffLine(diff)}`) +
+    `Each question has exactly 4 short answer options and exactly one of them is correct. Make sure the answer you mark is really correct. ` +
+    `Make the wrong options believable, like common mistakes. Never use "all of the above" or "none of the above", and don't put letters in front of the options. ` +
+    `Each question should take less than a minute. ${PLAIN_MATH}${langLine()}` +
+    (avoid.length ? `\n\nDon't repeat any of these questions:\n${bullets(avoid)}` : "") +
+    (focus?.length ? `\n\nThis quiz is a second try for the student. They got these questions wrong, so write new questions on exactly the same ideas, with different numbers or examples:\n${bullets(focus)}` : "") +
+    `\n\nReply with exactly one JSON object per line and nothing else: no code fence, no numbering, no other text.\n` +
+    `{"q": "the question", "options": ["first", "second", "third", "fourth"], "answer": 0, "why": "one sentence on why the right answer is right"}\n` +
+    `"answer" is the position of the correct option in "options": 0, 1, 2 or 3.` +
+    (photoMode
+      ? `\n\nEvery question must also have "photo": the number of the photo its problem is in (1 for the first photo), and "box": [left, top, right, bottom], the part of that photo that shows the whole problem (include any picture, graph or table it needs), as fractions of the photo's width and height from 0 to 1. ` +
+        `The page shows that part of the photo above the question, so the question text can say "Look at the problem above". Example line:\n` +
+        `{"q": "the question", "options": ["first", "second", "third", "fourth"], "answer": 0, "why": "one sentence", "photo": 1, "box": [0.05, 0.12, 0.95, 0.34]}`
+      : drawingRules());
+}
+
+const SVG_SAMPLE = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 160'><rect width='480' height='160' fill='#fff'/><text x='240' y='90' font-size='32' font-family='sans-serif' text-anchor='middle' fill='#1f2937'>3x + 7 = 22</text></svg>";
+const QUIZ_EXAMPLE = `{"q": "Look at the drawing. What is x?", "options": ["first", "second", "third", "fourth"], "answer": 0, "why": "one sentence", "svg": "${SVG_SAMPLE}"}`;
+
+function drawingRules(exampleLine = QUIZ_EXAMPLE, lead = null) {
+  return "\n\n" + (lead || `Every question must also have "svg": a drawing of the problem the way it would look printed on a worksheet${photoBlobs() ? ", in the same style as the student's photos" : ""}. `) +
+    `Draw what the problem needs: the equation or expression written out large, a shape with labeled sides or angles, a graph or number line, a table, a labeled diagram, a short passage, and so on. ` +
+    `Never show the answer or the answer options in the drawing. The page shows the drawing above the question, so the question text can say "Look at the drawing". ` +
+    `Rules for the svg: one <svg> element with xmlns='http://www.w3.org/2000/svg' and viewBox='0 0 480 H' where H is between 160 and 360; a white rectangle as the background; dark ink (#1f2937) and at most one accent color (#2647c9); ` +
+    `plain sans-serif text at font-size 16 or larger; keep every shape and label at least 30 units inside the edges of the viewBox so nothing gets cut off; label every point, side and axis the problem talks about` +
+    (LANGS[lang].dir === "rtl" ? `; write point names, numbers and math in Latin letters and digits with direction='ltr', and give any ${LANGS[lang].name} words text-anchor='middle'` : "") +
+    `; only basic shapes, lines, paths and text. No scripts, images, links or foreignObject. ` +
+    `Use single quotes for every attribute and keep the whole svg on one line so the JSON stays valid. Keep each svg under 2500 characters. Example line:\n` +
+    exampleLine;
+}
+
+// Pulls every complete top-level {...} out of the reply, so questions show up while it is still being written.
+function extractObjects(text) {
+  const found = [];
+  let depth = 0, start = -1, inStr = false, escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"' && depth > 0) inStr = true;
+    else if (c === "{") { if (depth++ === 0) start = i; }
+    else if (c === "}" && depth > 0 && --depth === 0) {
+      try { found.push(JSON.parse(text.slice(start, i + 1))); } catch {}
+    }
+  }
+  return found;
+}
+function streamObjects(onItem) {
+  let seen = 0;
+  return text => {
+    const found = extractObjects(text);
+    for (; seen < found.length; seen++) onItem(found[seen]);
+  };
+}
+
+const stripNumber = s => s.replace(/^(?:Q(?:uestion)?\s*)?\d+[.):]\s+/i, "");
+function cleanPractice(o) {
+  const q = typeof o?.q === "string" ? stripNumber(o.q.trim()) : "";
+  const a = typeof o?.a === "string" ? o.a.trim() : "";
+  return q && a ? { q, a, svg: cleanSvg(o.svg) } : null;
+}
+
+// Where a question's problem sits in its photo: [left, top, right, bottom] as 0-1 fractions, or null for the whole photo.
+function cleanBox(box) {
+  if (!Array.isArray(box) || box.length !== 4) return null;
+  let b = box.map(Number);
+  if (b.some(v => !Number.isFinite(v) || v < 0)) return null;
+  const max = Math.max(...b);
+  if (max > 100) return null;
+  if (max > 1) b = b.map(v => v / 100);
+  return b[2] - b[0] >= 0.03 && b[3] - b[1] >= 0.03 ? b.map(v => Math.min(1, v)) : null;
+}
+
+function cleanQuiz(o, photoCount = 0) {
+  if (!o || typeof o.q !== "string" || !Array.isArray(o.options) || o.options.length !== 4) return null;
+  const q = stripNumber(o.q.trim());
+  const options = o.options.map(x => String(x ?? "").trim().replace(/^\(?[A-Da-dא-ד][).:]\s+/, ""));
+  const letter = typeof o.answer === "string" ? o.answer.trim().toLowerCase() : "";
+  const answer = /^[a-d]$/.test(letter) ? "abcd".indexOf(letter) : Number(o.answer);
+  if (!q || options.some(x => !x) || !Number.isInteger(answer) || answer < 0 || answer > 3) return null;
+  // Shuffle so the right answer isn't always in the same spot
+  const order = shuffle([0, 1, 2, 3]);
+  const photo = Number(o.photo);
+  const fromPhoto = Number.isInteger(photo) && photo >= 1 && photo <= photoCount;
+  return {
+    q, options: order.map(k => options[k]), answer: order.indexOf(answer), why: typeof o.why === "string" ? o.why.trim() : "",
+    photo: fromPhoto ? photo : 0, box: fromPhoto ? cleanBox(o.box) : null,
+    svg: fromPhoto ? "" : cleanSvg(o.svg),
+  };
+}
+
+// Claude's drawing of a made-up problem. Only kept when it can be sanitized before it is shown.
+function cleanSvg(svg) {
+  if (typeof svg !== "string" || svg.length > 20000 || !/^\s*<svg[\s>]/i.test(svg) || !window.DOMPurify) return "";
+  return svg.trim();
+}
+
+function drawnFigure(item) {
+  if (!window.DOMPurify) return null;
+  const fig = document.createElement("figure");
+  fig.className = "problem drawn";
+  fig.innerHTML = DOMPurify.sanitize(item.svg, { USE_PROFILES: { svg: true } });
+  const svg = fig.querySelector("svg");
+  if (!svg) return null;
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", t().drawing);
+  if (svg.getAttribute("viewBox")) { svg.removeAttribute("width"); svg.removeAttribute("height"); }
+  requestAnimationFrame(() => fitSvg(svg));
+  return fig;
+}
+
+// Grows the drawing's frame to include anything Claude placed past its edges, so no label gets cut off.
+function fitSvg(svg) {
+  try {
+    const b = svg.getBBox();
+    if (!b.width || !b.height) return;
+    const vb = svg.viewBox.baseVal;
+    const pad = 16;
+    const hasBox = vb && vb.width && vb.height;
+    const x0 = Math.min(hasBox ? vb.x : Infinity, b.x - pad);
+    const y0 = Math.min(hasBox ? vb.y : Infinity, b.y - pad);
+    const x1 = Math.max(hasBox ? vb.x + vb.width : -Infinity, b.x + b.width + pad);
+    const y1 = Math.max(hasBox ? vb.y + vb.height : -Infinity, b.y + b.height + pad);
+    svg.setAttribute("viewBox", `${x0} ${y0} ${x1 - x0} ${y1 - y0}`);
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+  } catch {}
+}
+
+// The problem's part of the photo, drawn on a canvas, with a button to see the whole photo.
+function problemFigure(item) {
+  if (item.svg) return drawnFigure(item);
+  const url = item.photo && quiz.photoUrls[item.photo - 1];
+  if (!url) return null;
+  const fig = document.createElement("figure");
+  fig.className = "problem";
+  const canvas = document.createElement("canvas");
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", t().problemFrom(item.photo));
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ghost small";
+  toggle.hidden = !item.box;
+  let whole = !item.box;
+  const img = new Image();
+  const draw = () => {
+    const W = img.naturalWidth, H = img.naturalHeight, pad = 0.03;
+    const [x0, y0, x1, y1] = whole ? [0, 0, 1, 1]
+      : [Math.max(0, item.box[0] - pad), Math.max(0, item.box[1] - pad), Math.min(1, item.box[2] + pad), Math.min(1, item.box[3] + pad)];
+    const sw = (x1 - x0) * W, sh = (y1 - y0) * H;
+    const scale = Math.min(1, 1400 / sw);
+    canvas.width = Math.max(1, Math.round(sw * scale));
+    canvas.height = Math.max(1, Math.round(sh * scale));
+    canvas.getContext("2d").drawImage(img, x0 * W, y0 * H, sw, sh, 0, 0, canvas.width, canvas.height);
+    toggle.textContent = whole ? t().zoomIn : t().wholePhoto;
+  };
+  img.onload = draw;
+  img.src = url;
+  toggle.addEventListener("click", () => { whole = !whole; draw(); });
+  fig.append(canvas, toggle);
+  return fig;
+}
+
+function reshuffle(questions) {
+  return questions.map(x => {
+    const order = shuffle([0, 1, 2, 3]);
+    return { ...x, options: order.map(k => x.options[k]), answer: order.indexOf(x.answer) };
+  });
+}
+
+// Practice questions
+function cardEl(p) {
+  const li = document.createElement("li");
+  li.className = "card";
+  const q = document.createElement("p");
+  q.className = "card-q";
+  q.innerHTML = renderInline(p.q);
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = t().showAnswer;
+  const a = document.createElement("div");
+  a.className = "card-a a";
+  a.innerHTML = render(p.a);
+  details.addEventListener("toggle", () => { summary.textContent = details.open ? t().hideAnswer : t().showAnswer; });
+  details.append(summary, a, speakBtn(() => plainText(p.a)));
+  const body = document.createElement("div");
+  body.className = "card-body";
+  const fig = p.svg ? drawnFigure(p) : null;
+  if (fig) body.append(fig);
+  body.append(q, speakBtn(() => plainInline(p.q)));
+  li.append(body, details);
+  return li;
+}
+
+function showPracticeExample() {
+  els.practiceTitle.textContent = t().practiceTitle;
+  els.practiceChip.hidden = false;
+  els.practiceIntro.textContent = t().practiceIntroEx;
+  els.cards.innerHTML = "";
+  t().examplePractice.forEach(p => els.cards.append(cardEl(p)));
+  els.practiceNote.hidden = false;
+  els.practiceMore.hidden = true;
+}
+
+function renderPractice() {
+  els.practiceTitle.textContent = t()[exam.titleKey];
+  els.practiceChip.hidden = true;
+  els.practiceIntro.textContent = t().practiceIntro;
+  els.practiceNote.hidden = true;
+  els.cards.innerHTML = "";
+  exam.practice.forEach(p => els.cards.append(cardEl(p)));
+  els.practiceMore.hidden = !exam.practice.length;
+}
+
+async function makePractice({ more = false, focus = null } = {}) {
+  if (!sample || exam.busy || quiz.state === "loading" || !hasMaterial()) return;
+  const fromPhotos = !more && !focus && quizUsesPhotoProblems();
+  const count = fromPhotos ? 12 : more || focus ? 6 : 8;
+  const avoid = more ? exam.practice.map(p => p.q).slice(-30) : [];
+  if (!more) {
+    exam.practice = [];
+    exam.titleKey = focus ? "practiceMissed" : "practiceTitle";
+    renderPractice();
+  }
+  exam.busy = true;
+  exam.ctl = new AbortController();
+  hideExamError();
+  els.practiceMore.hidden = true;
+  els.practiceStop.hidden = false;
+  const wait = document.createElement("li");
+  wait.innerHTML = `<p class="thinking">${esc(t().thinkingMaterial)}</p>`;
+  els.cards.append(wait);
+  layoutExam();
+  updateExam();
+  els.examStatus.textContent = t().writing;
+  if (focus) els.practiceSheet.scrollIntoView({ block: "start" });
+
+  const added = [];
+  const take = o => {
+    if (Array.isArray(o?.questions)) return o.questions.forEach(take);
+    const p = cleanPractice(o);
+    if (!p || added.length >= count) return;
+    const el = cardEl(p);
+    added.push(el);
+    exam.practice.push(p);
+    els.cards.insertBefore(el, wait);
+    els.examStatus.textContent = t().wrote(added.length);
+  };
+  const feed = streamObjects(take);
+  try {
+    const opts = { cache: false, signal: exam.ctl.signal, onText: ({ text }) => feed(text) };
+    const blobs = photoBlobs();
+    if (blobs) opts.images = blobs;
+    const { text } = await sample(practicePrompt({ count, avoid, focus, fromPhotos }), opts);
+    feed(text);
+    if (!added.length) showExamError(t().noQuestions);
+  } catch (e) {
+    if (e.code === "refused") {
+      added.forEach(el => el.remove());
+      exam.practice.splice(exam.practice.length - added.length, added.length);
+    } else if (e.text) feed(e.text);
+    if (e.code !== "cancelled") showExamError(copyFor(e.code));
+  } finally {
+    exam.busy = false;
+    exam.ctl = null;
+    wait.remove();
+    els.practiceStop.hidden = true;
+    if (exam.practice.length) els.practiceMore.hidden = false;
+    else showPracticeExample();
+    layoutExam();
+    updateExam();
+  }
+}
+
+// Timed quiz
+async function buildQuiz({ focus = null, diff = difficulty(), lesson = null } = {}) {
+  if (!sample || exam.busy || quiz.state === "loading" || quiz.state === "active" || (!lesson && !hasMaterial())) return;
+  const avoid = quiz.questions.map(x => x.q).slice(-30);
+  quiz.prev = quiz.state;
+  hideExamError();
+  els.quizProgress.style.width = "0%";
+  els.quizLoadText.textContent = t().reading;
+  setQuizState("loading");
+  els.quizSheet.scrollIntoView({ block: "start" });
+
+  const blobs = lesson ? null : photoBlobs();
+  const onlyPhotos = !lesson && quizUsesPhotoProblems() && !focus;
+  const qs = [];
+  const take = o => {
+    if (Array.isArray(o?.questions)) return o.questions.forEach(take);
+    const c = cleanQuiz(o, blobs?.length || 0);
+    if (!c || qs.length >= QUIZ_SIZE) return;
+    // With a single photo of questions, every question is from it, even if Claude forgot to say so
+    if (onlyPhotos && !c.photo && blobs.length === 1) c.photo = 1;
+    qs.push(c);
+    els.quizProgress.style.width = `${qs.length / QUIZ_SIZE * 100}%`;
+    els.quizLoadText.textContent = t().nReady(qs.length, QUIZ_SIZE);
+  };
+  const feed = streamObjects(take);
+  quiz.ctl = new AbortController();
+  try {
+    const opts = { cache: false, signal: quiz.ctl.signal, onText: ({ text }) => feed(text) };
+    if (blobs) opts.images = blobs;
+    const { text } = await sample(quizPrompt(avoid, focus, diff, lesson), opts);
+    feed(text);
+    if (qs.length < (onlyPhotos ? 1 : MIN_QUIZ)) throw { code: "too_few" };
+    quiz.ctl = null;
+    quiz.questions = qs;
+    quiz.diff = diff;
+    quiz.lesson = lesson;
+    quiz.photoUrls.forEach(u => URL.revokeObjectURL(u));
+    quiz.photoUrls = (blobs || []).map(b => URL.createObjectURL(b));
+    quiz.photoBlobs = blobs || [];
+    beginQuiz();
+  } catch (e) {
+    quiz.ctl = null;
+    setQuizState(quiz.prev);
+    if (e.code === "too_few") showExamError(t().tooFew);
+    else if (e.code !== "cancelled") showExamError(copyFor(e.code));
+  }
+}
+
+function beginQuiz() {
+  const n = quiz.questions.length;
+  quiz.answers = new Array(n).fill(null);
+  quiz.index = 0;
+  quiz.startedAt = Date.now();
+  quiz.endsAt = quiz.startedAt + n * 60000;   // one minute per question
+  quiz.finishedAt = 0;
+  quiz.timeUp = false;
+  quiz.announced = {};
+  quiz.deeperCtl?.abort();
+  quiz.extra = {};
+  setQuizState("active");
+  renderQuestion();
+  startTicking();
+  els.quizSheet.scrollIntoView({ block: "start" });
+}
+
+function startTicking() {
+  clearInterval(quiz.timer);
+  tick();
+  quiz.timer = setInterval(tick, 250);
+}
+
+function tick() {
+  if (quiz.state !== "active") return;
+  const left = quiz.endsAt - Date.now();
+  if (left <= 0) { finishQuiz(true); return; }
+  const time = fmt(left);
+  els.clock.textContent = time;
+  els.tabTimer.textContent = time;
+  els.quizBar.classList.toggle("low", left <= 60000);
+  els.timeFill.style.width = `${left / (quiz.endsAt - quiz.startedAt) * 100}%`;
+  for (const [ms, key] of [[300000, "min5"], [60000, "min1"]]) {
+    if (left <= ms && !quiz.announced[ms]) { quiz.announced[ms] = true; els.announce.textContent = t()[key]; }
+  }
+}
+
+function renderQuestion() {
+  const i = quiz.index;
+  const item = quiz.questions[i];
+  const n = quiz.questions.length;
+  els.qPos.textContent = t().qPos(i + 1, n);
+  els.qText.innerHTML = renderInline(item.q);
+  const fig = problemFigure(item);
+  els.qFig.innerHTML = "";
+  if (fig) els.qFig.append(fig);
+  els.qFig.hidden = !fig;
+  const qSpeak = speakBtn(() => mcSpeech(item.q, item.options));
+  els.qSpeakSlot.innerHTML = "";
+  els.qSpeakSlot.append(qSpeak);
+  els.options.innerHTML = "";
+  item.options.forEach((text, k) => {
+    const label = document.createElement("label");
+    label.className = "opt";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = "quiz-opt";
+    input.id = "opt-" + k;
+    input.checked = quiz.answers[i] === k;
+    input.addEventListener("change", () => { quiz.answers[i] = k; renderDots(); resetFinishConfirm(); });
+    const letter = document.createElement("span");
+    letter.className = "letter";
+    letter.textContent = t().letters[k];
+    const body = document.createElement("span");
+    body.innerHTML = renderInline(text);
+    label.append(input, letter, body);
+    els.options.append(label);
+  });
+  els.prevQ.disabled = i === 0;
+  els.nextQ.hidden = i === n - 1;
+  renderDots();
+  resetFinishConfirm();
+  if (tts.auto && quiz.state === "active") qSpeak.click();
+}
+
+function renderDots() {
+  const n = quiz.questions.length;
+  els.qAnswered.textContent = t().answered(quiz.answers.filter(a => a !== null).length, n);
+  els.dots.innerHTML = "";
+  for (let k = 0; k < n; k++) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "dot";
+    b.textContent = k + 1;
+    const answered = quiz.answers[k] !== null;
+    if (answered) b.classList.add("done");
+    if (k === quiz.index) { b.classList.add("here"); b.setAttribute("aria-current", "step"); }
+    b.setAttribute("aria-label", t().dotLabel(k + 1, answered));
+    b.addEventListener("click", () => { quiz.index = k; renderQuestion(); });
+    els.dots.append(b);
+  }
+}
+
+function resetFinishConfirm() {
+  quiz.confirmUntil = 0;
+  clearTimeout(quiz.confirmTimer);
+  els.finishQ.textContent = t().finish;
+}
+
+function finishQuiz(timeUp) {
+  if (quiz.state !== "active") return;
+  clearInterval(quiz.timer);
+  resetFinishConfirm();
+  quiz.timeUp = timeUp;
+  quiz.finishedAt = timeUp ? quiz.endsAt : Date.now();
+  setQuizState("done");
+  renderResults();
+  explainMistakes();
+  if (timeUp) els.announce.textContent = t().timesUp;
+  if (activeTab !== "exam") { els.tabTimer.textContent = t().done; els.tabTimer.hidden = false; }
+  els.resultSheet.scrollIntoView({ block: "start" });
+}
+
+function renderResults() {
+  const s = t();
+  const qs = quiz.questions;
+  const n = qs.length;
+  const right = qs.filter((x, i) => quiz.answers[i] === x.answer).length;
+  const blank = quiz.answers.filter(a => a === null).length;
+  const wrong = n - right - blank;
+  const pct = right / n;
+  els.scoreNum.textContent = right;
+  els.scoreOf.textContent = "/" + n;
+  els.scoreMsg.textContent = s.scores[pct === 1 ? 0 : pct >= 0.8 ? 1 : pct >= 0.6 ? 2 : pct >= 0.4 ? 3 : 4];
+  els.scoreSub.textContent = [
+    quiz.timeUp ? s.timeRanOut : s.finishedIn(fmt(quiz.finishedAt - quiz.startedAt)),
+    wrong && s.nWrong(wrong),
+    blank && s.nBlank(blank),
+    s.diffIs(s.levelName[quiz.diff] || s.levelName.medium),
+  ].filter(Boolean).join(" · ");
+  els.missedGo.hidden = right === n;
+  const next = nextLevel(right, n);
+  els.nextQuizText.textContent = `${s.nextQuizText(right, n, s.levelName[next])} ${s.nextQuizReason[next]}`;
+  els.nextQuizGo.textContent = s.nextQuizGo(s.levelName[next]);
+
+  els.review.innerHTML = "";
+  qs.forEach((x, i) => {
+    const picked = quiz.answers[i];
+    const [cls, word] = picked === null ? ["blank", s.blank] : picked === x.answer ? ["ok", s.correct] : ["bad", s.wrong];
+    const li = document.createElement("li");
+    li.className = "rev";
+    li.innerHTML = `<div class="rev-head"><span class="pill ${cls}">${esc(word)}</span><span class="rev-num">${esc(s.questionN(i + 1))}</span></div>` +
+      `<p class="rev-q">${renderInline(x.q)}</p>`;
+    const fig = problemFigure(x);
+    if (fig) li.insertBefore(fig, li.querySelector(".rev-q"));
+    const ul = document.createElement("ul");
+    ul.className = "rev-opts";
+    x.options.forEach((opt, k) => {
+      const o = document.createElement("li");
+      let tag = "";
+      if (k === x.answer) { o.className = "right"; tag = picked === k ? s.yoursRight : s.rightAnswer; }
+      else if (k === picked) { o.className = "wrong"; tag = s.yours; }
+      o.innerHTML = `<span class="rev-letter">${s.letters[k]}</span><span>${renderInline(opt)}</span>` + (tag ? `<span class="tag">${esc(tag)}</span>` : "");
+      ul.append(o);
+    });
+    li.append(ul);
+    if (x.why) {
+      const why = document.createElement("p");
+      why.className = "rev-why";
+      why.innerHTML = renderInline(x.why);
+      li.append(why);
+    }
+    if (cls !== "ok") {
+      const deep = document.createElement("div");
+      deep.className = "deeper";
+      deep.id = "deeper-" + i;
+      li.append(deep);
+      renderDeeper(i, deep);
+    }
+    els.review.append(li);
+  });
+  updateDeeperGo();
+}
+
+// The longer explanation and extra questions under a missed question in the review.
+function renderDeeper(i, el = $("deeper-" + i)) {
+  if (!el) return;
+  const d = quiz.extra[i];
+  el.innerHTML = "";
+  if (!d) {
+    if (quiz.deeperCtl) el.innerHTML = `<p class="thinking">${esc(t().explaining)}</p>`;
+    return;
+  }
+  const title = document.createElement("p");
+  title.className = "label";
+  title.textContent = t().deeperTitle;
+  const body = document.createElement("div");
+  body.className = "a";
+  body.innerHTML = render(d.explain);
+  el.append(title, body, speakBtn(() => plainText(d.explain)));
+  if (d.more.length) {
+    const moreTitle = document.createElement("p");
+    moreTitle.className = "label";
+    moreTitle.textContent = t().moreLike;
+    const list = document.createElement("ol");
+    list.className = "cards";
+    d.more.forEach(p => list.append(cardEl(p)));
+    el.append(moreTitle, list);
+  }
+}
+
+function unexplained() {
+  return quiz.questions.map((x, i) => ({ x, i })).filter(({ x, i }) => quiz.answers[i] !== x.answer && !quiz.extra[i]);
+}
+function updateDeeperGo() { els.deeperGo.hidden = !!quiz.deeperCtl || !unexplained().length; }
+
+async function explainMistakes() {
+  if (!sample || quiz.deeperCtl) return;
+  const missed = unexplained();
+  if (!missed.length) return;
+  const L = "ABCD";
+  const list = missed.map(({ x, i }, k) => {
+    const picked = quiz.answers[i];
+    return `${k + 1}. ${x.q}${x.photo ? ` (This problem is in attached photo ${x.photo}.)` : ""}\n` +
+      `Options: ${x.options.map((o, j) => `${L[j]}) ${o}`).join("   ")}\n` +
+      `Right answer: ${L[x.answer]}) ${x.options[x.answer]}\n` +
+      (picked === null ? "The student left it blank." : `The student answered: ${L[picked]}) ${x.options[picked]}`);
+  }).join("\n\n");
+  const images = missed.some(({ x }) => x.photo) && quiz.photoBlobs.length ? quiz.photoBlobs : null;
+  const prompt = `You are a patient tutor helping a ${els.grade.value} student. They just took a quiz and got the questions below wrong.\n\n` +
+    `For each one, explain it more fully than a one-line answer: say what the question is really asking, walk through how to get the right answer step by step, ` +
+    `and explain why the student's answer is wrong (or, if they left it blank, how to get started). Keep each explanation short enough to read in about a minute. ` +
+    `Then write 2 more practice questions on exactly the same idea, with different numbers or examples, and give each a short answer. ` +
+    `${diffLine(quiz.diff)} ${PLAIN_MATH}${langLine()}\n\n${list}\n\n` +
+    `Reply with exactly one JSON object per line for each question above, in the same order, and nothing else: no code fence, no other text. Write line breaks inside strings as \\n.\n` +
+    `{"n": 1, "explain": "the explanation (markdown is fine)", "more": [{"q": "question", "a": "answer"}, {"q": "question", "a": "answer"}]}` +
+    drawingRules(`{"n": 1, "explain": "the explanation", "more": [{"q": "Look at the drawing. What is x?", "a": "x = 5", "svg": "${SVG_SAMPLE}"}, {"q": "question", "a": "answer", "svg": "<svg ...>...</svg>"}]}`);
+
+  const ctl = new AbortController();
+  quiz.deeperCtl = ctl;
+  let done = 0;
+  els.deeperBar.hidden = false;
+  els.deeperStop.hidden = false;
+  els.deeperStatus.textContent = t().explaining + "...";
+  updateDeeperGo();
+  missed.forEach(({ i }) => renderDeeper(i));
+  const take = o => {
+    const m = missed[Number(o?.n) - 1];
+    if (ctl.signal.aborted || !m || quiz.extra[m.i] || typeof o.explain !== "string") return;
+    const more = Array.isArray(o.more) ? o.more.map(cleanPractice).filter(Boolean).slice(0, 3) : [];
+    quiz.extra[m.i] = { explain: o.explain, more };
+    renderDeeper(m.i);
+    els.deeperStatus.textContent = t().explainedN(++done, missed.length);
+  };
+  const feed = streamObjects(take);
+  let failed = null;
+  try {
+    const opts = { cache: false, signal: ctl.signal, onText: ({ text }) => feed(text) };
+    if (images) opts.images = images;
+    const { text } = await sample(prompt, opts);
+    feed(text);
+  } catch (e) {
+    if (e.text && e.code !== "refused") feed(e.text);
+    if (e.code !== "cancelled") failed = copyFor(e.code);
+  } finally {
+    if (quiz.deeperCtl === ctl) quiz.deeperCtl = null;
+    missed.forEach(({ i }) => renderDeeper(i));
+    els.deeperStop.hidden = true;
+    els.deeperStatus.textContent = failed || "";
+    els.deeperBar.hidden = !failed;
+    updateDeeperGo();
+  }
+}
+
+function missedList() {
+  return quiz.questions
+    .filter((x, i) => quiz.answers[i] !== x.answer)
+    .map(x => `${x.q} (right answer: ${x.options[x.answer]})`);
+}
+
+let saveTimer = 0;
+els.material.addEventListener("input", () => {
+  updateExam();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => store("hl-material", els.material.value), 400);
+});
+els.examFiles.addEventListener("change", () => { addPhotos([...els.examFiles.files]); els.examFiles.value = ""; });
+els.examCamera.addEventListener("change", () => { addPhotos([...els.examCamera.files]); els.examCamera.value = ""; });
+els.kindBox.addEventListener("change", () => { store("hl-kind", photoKind()); updateExam(); });
+els.quizFromBox.addEventListener("change", () => store("hl-quiz-from", quizFrom()));
+["dragenter", "dragover"].forEach(type => els.photos.addEventListener(type, e => { e.preventDefault(); els.photos.classList.add("over"); }));
+["dragleave", "drop"].forEach(type => els.photos.addEventListener(type, e => { e.preventDefault(); els.photos.classList.remove("over"); }));
+els.photos.addEventListener("drop", e => addPhotos([...e.dataTransfer.files]));
+
+els.practiceGo.addEventListener("click", () => makePractice());
+els.moreGo.addEventListener("click", () => makePractice({ more: true }));
+els.missedGo.addEventListener("click", () => buildQuiz({ focus: missedList(), diff: quiz.diff, lesson: quiz.lesson }));
+els.deeperGo.addEventListener("click", () => explainMistakes());
+els.deeperStop.addEventListener("click", () => quiz.deeperCtl?.abort());
+els.diffBox.addEventListener("change", () => store("hl-diff", difficulty()));
+els.practiceStop.addEventListener("click", () => exam.ctl?.abort());
+[els.quizGo, els.quizGo2].forEach(b => b.addEventListener("click", () => buildQuiz()));
+els.newQuiz.addEventListener("click", () => buildQuiz(quiz.lesson ? { diff: quiz.diff, lesson: quiz.lesson } : {}));
+els.nextQuizGo.addEventListener("click", () => {
+  const right = quiz.questions.filter((x, i) => quiz.answers[i] === x.answer).length;
+  buildQuiz({ diff: nextLevel(right, quiz.questions.length), lesson: quiz.lesson });
+});
+els.quizCancel.addEventListener("click", () => quiz.ctl?.abort());
+els.retakeQuiz.addEventListener("click", () => { quiz.questions = reshuffle(quiz.questions); beginQuiz(); });
+els.prevQ.addEventListener("click", () => { if (quiz.index > 0) { quiz.index--; renderQuestion(); } });
+els.nextQ.addEventListener("click", () => { if (quiz.index < quiz.questions.length - 1) { quiz.index++; renderQuestion(); } });
+els.finishQ.addEventListener("click", () => {
+  const blank = quiz.answers.filter(a => a === null).length;
+  if (blank && Date.now() > quiz.confirmUntil) {
+    quiz.confirmUntil = Date.now() + 4000;
+    els.finishQ.textContent = t().finishBlank(blank);
+    clearTimeout(quiz.confirmTimer);
+    quiz.confirmTimer = setTimeout(resetFinishConfirm, 4000);
+    return;
+  }
+  finishQuiz(false);
+});
+
+document.addEventListener("keydown", e => {
+  if (quiz.state !== "active" || activeTab !== "exam" || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+  if (e.target.closest?.("textarea, select")) return;
+  const key = e.key.toLowerCase();
+  const k = ["abcd", "אבגד", t().letters.toLowerCase(), "1234"].map(set => set.indexOf(key)).find(i => i >= 0) ?? -1;
+  const input = k >= 0 ? $("opt-" + k) : null;
+  if (!input) return;
+  e.preventDefault();
+  input.checked = true;
+  input.dispatchEvent(new Event("change"));
+  input.focus();
+});
+
+// ---------- Teach me ----------
+const learn = {
+  example: true, topic: "", title: "", steps: [], summary: "",
+  revealed: 1, picks: {}, simpler: {}, chat: [], log: [],
+  photo: null, photoUrl: null, busy: false, ctl: null, askBusy: false, askCtl: null,
+};
+
+const PIE_SVG = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 200'><rect width='480' height='200' fill='#fff'/>" +
+  "<path d='M240 100 L240 20 A80 80 0 0 1 320 100 Z' fill='#a9b9f2' stroke='#1f2937' stroke-width='2'/>" +
+  "<path d='M240 100 L320 100 A80 80 0 0 1 240 180 Z' fill='#a9b9f2' stroke='#1f2937' stroke-width='2'/>" +
+  "<path d='M240 100 L240 180 A80 80 0 0 1 160 100 Z' fill='#a9b9f2' stroke='#1f2937' stroke-width='2'/>" +
+  "<path d='M240 100 L160 100 A80 80 0 0 1 240 20 Z' fill='#fff' stroke='#1f2937' stroke-width='2'/>" +
+  "<text x='360' y='110' font-size='30' font-family='sans-serif' fill='#1f2937' direction='ltr'>3/4</text></svg>";
+
+const EXAMPLE_LESSON = {
+  en: [
+    {
+      title: "What a fraction means", svg: PIE_SVG,
+      explain: "A **fraction** is a part of a whole. In **3/4**, the bottom number (**4**) says how many equal pieces the whole is cut into. The top number (**3**) says how many of those pieces you have.\n\nIf a pizza is cut into 4 equal slices and you eat 3, you ate **3/4** of the pizza.",
+      check: { q: "A chocolate bar has 8 equal pieces. You eat 5. What fraction of the bar did you eat?", options: ["8/5", "5/8", "3/8", "5/3"], answer: 1, why: "The whole has 8 pieces (bottom number) and you ate 5 of them (top number)." },
+    },
+    {
+      title: "Fractions that are the same size",
+      explain: "Different fractions can be the same amount. **1/2** of a pizza is the same as **2/4**: cut each half into 2 pieces and you have 2 of 4 pieces.\n\nTo make an **equal fraction**, multiply the top and the bottom by the same number: 1/2 = (1×3)/(2×3) = 3/6.",
+      check: { q: "Which fraction is equal to 2/3?", options: ["2/6", "3/2", "4/6", "4/3"], answer: 2, why: "Multiply the top and the bottom by 2: (2×2)/(3×2) = 4/6." },
+    },
+  ],
+  he: [
+    {
+      title: "מה זה שבר", svg: PIE_SVG,
+      explain: "**שבר** הוא חלק משלם. בשבר **3/4**, המספר למטה (**4**) אומר לכמה חלקים שווים חילקו את השלם. המספר למעלה (**3**) אומר כמה מהחלקים יש לך.\n\nאם חותכים פיצה ל-4 משולשים שווים ואוכלים 3, אכלת **3/4** מהפיצה.",
+      check: { q: "בחפיסת שוקולד יש 8 קוביות שוות. אכלת 5. איזה חלק מהחפיסה אכלת?", options: ["8/5", "5/8", "3/8", "5/3"], answer: 1, why: "השלם מחולק ל-8 חלקים (המספר למטה), ואכלת 5 מהם (המספר למעלה)." },
+    },
+    {
+      title: "שברים שווים",
+      explain: "שברים שונים יכולים להיות אותה כמות. **1/2** פיצה זה כמו **2/4**: חותכים כל חצי לשני חלקים, ויש לך 2 מתוך 4 חלקים.\n\nכדי לקבל **שבר שווה**, כופלים את המונה ואת המכנה באותו מספר: 1/2 = (1×3)/(2×3) = 3/6.",
+      check: { q: "איזה שבר שווה ל-2/3?", options: ["2/6", "3/2", "4/6", "4/3"], answer: 2, why: "כופלים את המונה ואת המכנה ב-2: (2×2)/(3×2) = 4/6." },
+    },
+  ],
+};
+
+function lessonSteps() { return learn.example ? EXAMPLE_LESSON[lang] || EXAMPLE_LESSON.en : learn.steps; }
+function showLearnErr(msg) { els.learnErr.textContent = msg; els.learnErr.hidden = false; els.learnErr.scrollIntoView({ block: "nearest" }); }
+function hideLearnErr() { els.learnErr.hidden = true; }
+
+function updateLearn() {
+  const usePhoto = !!(learn.photo && imgCaps);
+  const has = els.learnTopic.value.trim().length >= 3 || usePhoto;
+  els.learnGo.disabled = !sample || !has || learn.busy;
+  els.learnAdd.hidden = sampleState === "ready" && !imgCaps;
+  if (!learn.busy) els.learnStatus.textContent = baseStatus() || (has ? t().ready : t().learnStart);
+}
+
+function setLearnPhoto(blob) {
+  const problem = photoProblem(blob);
+  if (problem) { showLearnErr(problem); return; }
+  hideLearnErr();
+  if (learn.photoUrl) URL.revokeObjectURL(learn.photoUrl);
+  learn.photo = blob;
+  learn.photoUrl = URL.createObjectURL(blob);
+  renderLearnThumb();
+  updateLearn();
+}
+
+function renderLearnThumb() {
+  els.learnThumbs.innerHTML = "";
+  if (!learn.photo) return;
+  const box = document.createElement("div");
+  box.className = "thumb";
+  const img = document.createElement("img");
+  img.src = learn.photoUrl;
+  img.alt = t().learnPhotoAlt;
+  const x = document.createElement("button");
+  x.type = "button";
+  x.textContent = "×";
+  x.setAttribute("aria-label", t().removePhoto(1));
+  x.addEventListener("click", () => {
+    URL.revokeObjectURL(learn.photoUrl);
+    learn.photo = null;
+    learn.photoUrl = null;
+    renderLearnThumb();
+    updateLearn();
+  });
+  box.append(img, x);
+  els.learnThumbs.append(box);
+}
+
+function checkEl(i, c) {
+  const s = t();
+  const box = document.createElement("div");
+  box.className = "check";
+  box.innerHTML = `<p class="label">${esc(s.quickCheck)}</p><p class="check-q">${renderInline(c.q)}</p>`;
+  box.append(speakBtn(() => mcSpeech(c.q, c.options)));
+  const picked = learn.picks[i];
+  c.options.forEach((opt, k) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "copt";
+    b.innerHTML = `<span class="letter">${s.letters[k]}</span><span>${renderInline(opt)}</span>`;
+    if (picked !== undefined) {
+      b.disabled = true;
+      if (k === c.answer) b.classList.add("right");
+      else if (k === picked) b.classList.add("wrong");
+    }
+    b.addEventListener("click", () => {
+      if (learn.picks[i] !== undefined) return;
+      learn.picks[i] = k;
+      renderLesson();
+    });
+    box.append(b);
+  });
+  if (picked !== undefined) {
+    const ok = picked === c.answer;
+    const p = document.createElement("p");
+    p.className = "feedback";
+    p.innerHTML = `<strong class="${ok ? "ok" : "bad"}">${esc(ok ? s.rightMark : s.wrongMark)}</strong> ${renderInline(c.why || "")}`;
+    box.append(p);
+  }
+  return box;
+}
+
+function stepEl(i) {
+  const s = t();
+  const steps = lessonSteps();
+  const st = steps[i];
+  const li = document.createElement("li");
+  li.className = "step";
+  li.id = "step-" + i;
+  const head = document.createElement("div");
+  head.className = "step-head";
+  head.innerHTML = `<p class="label">${esc(s.stepN(i + 1))}</p><h3>${renderInline(st.title)}</h3>`;
+  head.append(speakBtn(() => `${plainInline(st.title)}.\n${plainText(st.explain)}`));
+  li.append(head);
+  const fig = st.svg ? drawnFigure(st) : null;
+  if (fig) li.append(fig);
+  const body = document.createElement("div");
+  body.className = "a";
+  body.innerHTML = render(st.explain);
+  li.append(body);
+
+  if (learn.simpler[i] !== undefined) {
+    const box = document.createElement("div");
+    box.className = "simpler";
+    box.innerHTML = `<p class="label">${esc(s.anotherWay)}</p>`;
+    const a = document.createElement("div");
+    a.className = "a";
+    a.innerHTML = learn.simpler[i] ? render(learn.simpler[i]) : `<p class="thinking">${esc(s.thinking)}</p>`;
+    box.append(a);
+    if (learn.simpler[i] && !learn.askBusy) box.append(speakBtn(() => plainText(learn.simpler[i])));
+    li.append(box);
+  } else if (!learn.example) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ghost small self-start";
+    b.textContent = s.dontGet;
+    b.disabled = learn.askBusy || !sample;
+    b.addEventListener("click", () => simplerStep(i));
+    li.append(b);
+  }
+
+  if (st.check) li.append(checkEl(i, st.check));
+
+  const answered = !st.check || learn.picks[i] !== undefined;
+  const more = i < steps.length - 1 || (learn.busy && !learn.example);
+  if (learn.revealed === i + 1 && answered && more) {
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "go self-start";
+    next.textContent = s.nextStep;
+    next.addEventListener("click", () => {
+      learn.revealed = i + 2;
+      renderLesson();
+      if (tts.auto) $("step-" + (i + 1))?.querySelector(".step-head .speak")?.click();
+      (els.steps.children[i + 1])?.scrollIntoView({ block: "start" });
+    });
+    li.append(next);
+  }
+  return li;
+}
+
+function renderLesson() {
+  const s = t();
+  const steps = lessonSteps();
+  els.lessonChip.hidden = !learn.example;
+  els.lessonTitle.textContent = learn.example ? s.lessonExTitle : learn.title || s.yourLesson;
+  els.lessonIntro.textContent = learn.example ? s.lessonExIntro : s.lessonIntro;
+  els.steps.innerHTML = "";
+  const shown = Math.min(learn.revealed, steps.length);
+  for (let i = 0; i < shown; i++) els.steps.append(stepEl(i));
+  if (!learn.example && learn.busy && learn.revealed > steps.length) {
+    const wait = document.createElement("li");
+    wait.innerHTML = `<p class="thinking">${esc(steps.length ? s.writingStep : s.planning)}</p>`;
+    els.steps.append(wait);
+  }
+  const last = steps.length - 1;
+  const finished = !learn.example && !learn.busy && steps.length > 0 && learn.revealed > last &&
+    (!steps[last].check || learn.picks[last] !== undefined);
+  els.lessonEnd.hidden = !finished;
+  if (finished) {
+    els.lessonSummary.innerHTML = learn.summary ? render(learn.summary) : "";
+    els.lessonSummary.hidden = !learn.summary;
+    const checks = steps.filter(x => x.check).length;
+    const right = steps.filter((x, i) => x.check && learn.picks[i] === x.check.answer).length;
+    els.lessonScore.textContent = checks ? s.checkScore(right, checks) : "";
+    els.learnQuiz.disabled = !sample || exam.busy || quiz.state === "loading" || quiz.state === "active";
+  }
+  els.learnAsk.hidden = learn.example || !steps.length;
+}
+
+function lessonPrompt(usePhoto) {
+  const topic = learn.topic.slice(0, 8000);
+  return `You are a patient, friendly teacher. A ${els.grade.value} student didn't follow the lesson in class and wants to learn it from the start.\n\n` +
+    (usePhoto ? "The attached photo shows what was taught (the board, their notebook or a textbook page). Read it carefully.\n\n" : "") +
+    (topic ? `What they want to learn:\n"""\n${topic}\n"""\n\n` : "Teach what the photo shows.\n\n") +
+    `Teach it as a short lesson of 4 to 7 small steps that build on each other. Start from what they probably already know. ` +
+    `Each step teaches ONE idea in plain, friendly words with a concrete example; for math or science include a fully worked example. Keep each step short, about 80 to 150 words. ` +
+    `After each step add one quick multiple-choice check question about that step, with 4 short options and exactly one correct. ${PLAIN_MATH}${langLine()}\n\n` +
+    `Reply with exactly one JSON object per line and nothing else: no code fence, no other text. Write line breaks inside strings as \\n.\n` +
+    `First line: {"lesson": "a short title for the whole lesson"}\n` +
+    `Then one line per step: {"title": "short step title", "explain": "the explanation (markdown is fine)", "check": {"q": "question", "options": ["first", "second", "third", "fourth"], "answer": 0, "why": "one sentence"}}\n` +
+    `Last line: {"summary": "a recap of the lesson as 3 to 5 markdown bullet points"}` +
+    drawingRules(`{"title": "short step title", "explain": "the explanation", "check": {"q": "question", "options": ["first", "second", "third", "fourth"], "answer": 0, "why": "one sentence"}, "svg": "${SVG_SAMPLE}"}`,
+      `Add "svg" to a step only when a picture really helps (a diagram, graph, shape, number line, timeline or labeled sketch), drawn clearly like a good textbook figure. `);
+}
+
+async function startLesson() {
+  const topic = els.learnTopic.value.trim();
+  const usePhoto = !!(learn.photo && imgCaps);
+  if (!sample || learn.busy || (topic.length < 3 && !usePhoto)) return;
+  learn.askCtl?.abort();
+  Object.assign(learn, { example: false, topic, title: "", steps: [], summary: "", revealed: 1, picks: {}, simpler: {}, chat: [], log: [], busy: true });
+  els.learnChat.innerHTML = "";
+  hideLearnErr();
+  els.learnStop.hidden = false;
+  updateLearn();
+  els.learnStatus.textContent = t().planning + "...";
+  renderLesson();
+  els.lessonSheet.scrollIntoView({ block: "start" });
+
+  const ctl = new AbortController();
+  learn.ctl = ctl;
+  const take = o => {
+    if (ctl.signal.aborted || !o) return;
+    if (typeof o.lesson === "string") { learn.title = o.lesson.trim(); els.lessonTitle.textContent = learn.title; return; }
+    if (typeof o.summary === "string") { learn.summary = o.summary; return; }
+    if (typeof o.title !== "string" || typeof o.explain !== "string") return;
+    learn.steps.push({ title: o.title.trim(), explain: o.explain, svg: cleanSvg(o.svg), check: o.check ? cleanQuiz(o.check) : null });
+    els.learnStatus.textContent = t().stepsReady(learn.steps.length);
+    if (learn.steps.length <= learn.revealed) {
+      renderLesson();
+      // The step the student was waiting for just arrived
+      if (tts.auto && learn.steps.length === learn.revealed) $("step-" + (learn.steps.length - 1))?.querySelector(".step-head .speak")?.click();
+    }
+  };
+  const feed = streamObjects(take);
+  try {
+    const opts = { cache: false, signal: ctl.signal, onText: ({ text }) => feed(text) };
+    if (usePhoto) opts.images = [learn.photo];
+    const { text } = await sample(lessonPrompt(usePhoto), opts);
+    feed(text);
+    if (!learn.steps.length) showLearnErr(t().noLesson);
+  } catch (e) {
+    if (e.code === "refused") learn.steps = [];
+    else if (e.text) feed(e.text);
+    if (e.code !== "cancelled") showLearnErr(copyFor(e.code));
+  } finally {
+    if (learn.ctl === ctl) { learn.ctl = null; learn.busy = false; }
+    if (!learn.steps.length) learn.example = true;
+    els.learnStop.hidden = true;
+    updateLearn();
+    renderLesson();
+  }
+}
+
+// "I don't get it": the same step explained again, more simply.
+async function simplerStep(i) {
+  const st = learn.steps[i];
+  if (!sample || learn.askBusy || !st) return;
+  learn.simpler[i] = "";
+  learn.askBusy = true;
+  $("step-" + i)?.replaceWith(stepEl(i));
+  const target = () => $("step-" + i)?.querySelector(".simpler .a");
+  const prompt = `${RULES(els.grade.value)}\n\nA student is learning "${learn.title || learn.topic}". They read this step of the lesson and said "I don't get it":\n\n"""\n${st.title}\n${st.explain}\n"""\n\n` +
+    `Explain the same idea again in a different, simpler way: use an everyday example from a kid's life, smaller steps, and no new terms. Keep it under 150 words.`;
+  try {
+    const { text } = await sample(prompt, { cache: false, onText: ({ text }) => { const el = target(); if (el) el.innerHTML = render(text); } });
+    learn.simpler[i] = text;
+  } catch (e) {
+    if (e.text && e.code !== "refused") learn.simpler[i] = e.text;
+    else delete learn.simpler[i];
+    if (e.code !== "cancelled") showLearnErr(copyFor(e.code));
+  } finally {
+    learn.askBusy = false;
+    renderLesson();
+  }
+}
+
+function chatMsg(kind, text) {
+  const el = document.createElement("div");
+  el.className = kind;
+  if (kind === "q") el.textContent = text;
+  else el.innerHTML = text ? render(text) : `<p class="thinking">${esc(t().thinking)}</p>`;
+  els.learnChat.append(el);
+  return el;
+}
+
+function lessonText() {
+  return lessonSteps().map((x, i) => `Step ${i + 1}: ${x.title}\n${x.explain}`).join("\n\n").slice(0, 20000);
+}
+
+els.learnAsk.addEventListener("submit", async e => {
+  e.preventDefault();
+  const text = els.learnAskText.value.trim();
+  if (!text || !sample || learn.askBusy || learn.example) return;
+  els.learnAskText.value = "";
+  if (!learn.chat.length) {
+    learn.chat.push({ role: "user", content: `${RULES(els.grade.value)}\n\nThe student is learning "${learn.title || learn.topic}" and just read this lesson:\n"""\n${lessonText()}\n"""\n\nAnswer their questions about it.` });
+  }
+  learn.chat.push({ role: "user", content: text });
+  learn.log.push({ k: "q", t: text });
+  chatMsg("q", text);
+  const bubble = chatMsg("a", "");
+  learn.askBusy = true;
+  els.learnAskGo.disabled = true;
+  const ctl = new AbortController();
+  learn.askCtl = ctl;
+  const keep = answer => { learn.chat.push({ role: "assistant", content: answer }); learn.log.push({ k: "a", t: answer }); };
+  try {
+    const { text: answer } = await sample(learn.chat.slice(), { cache: false, signal: ctl.signal, onText: ({ text }) => { bubble.innerHTML = render(text); } });
+    keep(answer);
+  } catch (err) {
+    const partial = err.code !== "refused" && err.text;
+    if (partial) { bubble.innerHTML = render(err.text); keep(err.text); }
+    else bubble.innerHTML = err.code === "cancelled" ? "" : `<p class="error">${esc(copyFor(err.code))}</p>`;
+  } finally {
+    learn.askBusy = false;
+    learn.askCtl = null;
+    els.learnAskGo.disabled = false;
+    if (learn.chat.length > 21) learn.chat.splice(1, 2);   // keep the lesson turn
+    renderLesson();
+  }
+});
+els.learnAskText.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); els.learnAsk.requestSubmit(); }
+});
+
+let learnSaveTimer = 0;
+els.learnTopic.addEventListener("input", () => {
+  updateLearn();
+  clearTimeout(learnSaveTimer);
+  learnSaveTimer = setTimeout(() => store("hl-learn", els.learnTopic.value), 400);
+});
+els.learnFile.addEventListener("change", () => { if (els.learnFile.files[0]) setLearnPhoto(els.learnFile.files[0]); els.learnFile.value = ""; });
+els.learnGo.addEventListener("click", () => startLesson());
+els.learnStop.addEventListener("click", () => learn.ctl?.abort());
+els.learnNew.addEventListener("click", () => {
+  els.learnTopic.value = "";
+  store("hl-learn", "");
+  updateLearn();
+  els.learnDesk.scrollIntoView({ block: "start" });
+  els.learnTopic.focus();
+});
+function lessonForQuiz() {
+  return [
+    learn.title && `Lesson: ${learn.title}`,
+    learn.topic && `Topic: ${learn.topic}`,
+    lessonText(),
+    learn.summary && `Summary:\n${learn.summary}`,
+  ].filter(Boolean).join("\n\n");
+}
+els.learnQuiz.addEventListener("click", () => {
+  showTab("exam");
+  window.scrollTo({ top: 0 });
+  buildQuiz({ diff: "medium", lesson: lessonForQuiz() });
+});
+els.learnPractice.addEventListener("click", () => {
+  els.material.value = [learn.title, learn.topic, learn.summary].filter(Boolean).join("\n\n").slice(0, 30000);
+  store("hl-material", els.material.value);
+  updateExam();
+  showTab("exam");
+  window.scrollTo({ top: 0 });
+});
+
+// ---------- answers clanker, NOW ----------
+const now = { photo: null, photoUrl: null, busy: false, log: [] };
+
+function showNowErr(msg) { els.nowErr.textContent = msg; els.nowErr.hidden = false; }
+
+function updateNow() {
+  const has = els.nowQ.value.trim().length >= 2 || !!(now.photo && imgCaps);
+  els.nowGo.disabled = !sample || !has || now.busy;
+  els.nowAdd.hidden = sampleState === "ready" && !imgCaps;
+  if (!now.busy) els.nowStatus.textContent = baseStatus() || (has ? t().ready : t().nowStart);
+}
+
+function setNowPhoto(blob) {
+  const problem = photoProblem(blob);
+  if (problem) { showNowErr(problem); return; }
+  els.nowErr.hidden = true;
+  if (now.photoUrl) URL.revokeObjectURL(now.photoUrl);
+  now.photo = blob;
+  now.photoUrl = URL.createObjectURL(blob);
+  renderNowThumb();
+  updateNow();
+}
+function clearNowPhoto() {
+  if (now.photoUrl) URL.revokeObjectURL(now.photoUrl);
+  now.photo = null;
+  now.photoUrl = null;
+  renderNowThumb();
+}
+function renderNowThumb() {
+  els.nowThumbs.innerHTML = "";
+  if (!now.photo) return;
+  const box = document.createElement("div");
+  box.className = "thumb";
+  const img = document.createElement("img");
+  img.src = now.photoUrl;
+  img.alt = t().yourPhoto;
+  const x = document.createElement("button");
+  x.type = "button";
+  x.textContent = "×";
+  x.setAttribute("aria-label", t().removePhoto(1));
+  x.addEventListener("click", () => { clearNowPhoto(); updateNow(); });
+  box.append(img, x);
+  els.nowThumbs.append(box);
+}
+
+// One question and its answer, newest at the top.
+function nowItem(q, a, photoUrl = null) {
+  const frag = document.createElement("div");
+  frag.className = "thread";
+  if (photoUrl) {
+    const img = document.createElement("img");
+    img.className = "thread-photo";
+    img.src = photoUrl;
+    img.alt = t().yourPhoto;
+    frag.append(img);
+  }
+  if (q) {
+    const qEl = document.createElement("div");
+    qEl.className = "q";
+    qEl.textContent = q;
+    frag.append(qEl);
+  }
+  const aEl = document.createElement("div");
+  aEl.className = "a";
+  aEl.innerHTML = a ? render(a) : `<p class="thinking">${esc(t().thinking)}</p>`;
+  frag.append(aEl);
+  els.nowThread.prepend(frag);
+  return { frag, aEl };
+}
+
+function renderNow() {
+  els.nowThread.innerHTML = "";
+  els.nowChip.hidden = !!now.log.length;
+  if (!now.log.length) {
+    const { frag } = nowItem(t().nowExQ, t().nowExA);
+    frag.append(speakBtn(() => plainText(t().nowExA)));
+    return;
+  }
+  now.log.slice().reverse().forEach(m => {
+    const { frag } = nowItem(m.q, m.a);
+    frag.append(speakBtn(() => plainText(m.a)));
+  });
+}
+
+async function answerNow() {
+  const q = els.nowQ.value.trim();
+  const photo = now.photo && imgCaps ? now.photo : null;
+  if (!sample || now.busy || (q.length < 2 && !photo)) return;
+  if (!now.log.length) els.nowThread.innerHTML = "";
+  els.nowChip.hidden = true;
+  els.nowErr.hidden = true;
+  const shownUrl = photo ? URL.createObjectURL(photo) : null;
+  const { frag, aEl } = nowItem(q, "", shownUrl);
+  els.nowQ.value = "";
+  clearNowPhoto();
+  now.busy = true;
+  updateNow();
+  els.nowStatus.textContent = t().working;
+  const prompt = `You answer homework questions fast for a ${els.grade.value} student.${langLine()}\n\n` +
+    (photo ? "The question is in the attached photo.\n\n" : "") +
+    (q ? `Question:\n"""\n${q.slice(0, 8000)}\n"""\n\n` : "") +
+    `Give the final answer first, in bold, on its own line. Then at most 2 short lines on why or how. ` +
+    `If there are several questions, answer each one the same way, numbered. No lesson and no introduction. ${PLAIN_MATH}`;
+  try {
+    const opts = { cache: false, effort: "low", onText: ({ text }) => { aEl.innerHTML = render(text); } };
+    if (photo) opts.images = [photo];
+    const { text } = await sample(prompt, opts);
+    now.log.push({ q: q || "📷", a: text });
+    const listen = speakBtn(() => plainText(text));
+    frag.append(listen);
+    if (tts.auto) listen.click();
+  } catch (e) {
+    const partial = e.code !== "refused" && e.text;
+    aEl.innerHTML = partial ? render(e.text) : `<p class="error">${esc(copyFor(e.code))}</p>`;
+    if (partial) now.log.push({ q: q || "📷", a: e.text });
+  } finally {
+    now.busy = false;
+    if (now.log.length > 30) now.log.splice(0, now.log.length - 30);
+    updateNow();
+  }
+}
+
+els.nowQ.addEventListener("input", updateNow);
+els.nowQ.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); answerNow(); }
+});
+els.nowFile.addEventListener("change", () => { if (els.nowFile.files[0]) setNowPhoto(els.nowFile.files[0]); els.nowFile.value = ""; });
+els.nowGo.addEventListener("click", () => answerNow());
+els.styleBox.addEventListener("change", () => store("hl-style", talkStyle()));
+
+// ---------- Shared input ----------
+document.addEventListener("paste", e => {
+  const files = [...(e.clipboardData?.items || [])]
+    .filter(i => i.type.startsWith("image/"))
+    .map(i => i.getAsFile())
+    .filter(Boolean);
+  if (!files.length) return;
+  e.preventDefault();
+  if (activeTab === "now") setNowPhoto(files[0]);
+  else if (activeTab === "learn") setLearnPhoto(files[0]);
+  else if (activeTab === "hw") setHwImage(files[0]);
+  else if (activeTab === "exam" && quiz.state !== "active" && quiz.state !== "loading") addPhotos(files);
+});
+els.grade.addEventListener("change", () => store("hl-grade", els.grade.value));
+els.ttsAuto.addEventListener("change", () => { tts.auto = els.ttsAuto.checked; store("hl-tts-auto", tts.auto ? "1" : ""); });
+els.ttsRate.addEventListener("change", () => { tts.rate = Number(els.ttsRate.value) || 1; store("hl-tts-rate", els.ttsRate.value); });
+els.ttsTest.addEventListener("click", () => speak(t().ttsSample));
+if (canSpeak) speechSynthesis.addEventListener?.("voiceschanged", updateTtsNote);
+
+// ---------- Boot ----------
+function snapshot() {
+  const state = quiz.state === "loading" ? quiz.prev : quiz.state;
+  return {
+    tab: activeTab,
+    hw: { log: hw.log, turns: hw.turns },
+    now: now.log,
+    learn: learn.example ? null : {
+      topic: learn.topic, title: learn.title, steps: learn.steps, summary: learn.summary,
+      revealed: learn.revealed, picks: learn.picks, simpler: learn.simpler, chat: learn.chat, log: learn.log,
+    },
+    practice: exam.practice,
+    titleKey: exam.titleKey,
+    quiz: {
+      state, questions: quiz.questions, answers: quiz.answers, index: quiz.index,
+      startedAt: quiz.startedAt, endsAt: quiz.endsAt, finishedAt: quiz.finishedAt, timeUp: quiz.timeUp,
+      extra: quiz.extra, diff: quiz.diff, lesson: quiz.lesson,
+    },
+  };
+}
+
+function start(data) {
+  data = data || {};
+  const savedLang = load("hl-lang");
+  const deviceLang = (navigator.language || "").slice(0, 2).toLowerCase();
+  setLanguage(LANGS[savedLang] ? savedLang : LANGS[deviceLang] ? deviceLang : "en");
+  applyStatic();
+  if (!els.material.value) els.material.value = load("hl-material") || "";
+  const g = load("hl-grade");
+  if (g) els.grade.value = g;
+  if (load("hl-kind") === "notes") $("k-notes").checked = true;
+  if (load("hl-quiz-from") === "photos") $("qf-photos").checked = true;
+  const savedDiff = load("hl-diff");
+  if (DIFF[savedDiff]) $("d-" + savedDiff).checked = true;
+  if (load("hl-style") === "genz") $("s-genz").checked = true;
+  if (Array.isArray(data.now)) now.log = data.now;
+  renderNow();
+  tts.auto = load("hl-tts-auto") === "1";
+  els.ttsAuto.checked = tts.auto;
+  const savedRate = load("hl-tts-rate");
+  if (["0.8", "1", "1.2"].includes(savedRate)) { els.ttsRate.value = savedRate; tts.rate = Number(savedRate); }
+  updateTtsNote();
+  showTab(data.tab || load("hl-tab") || "learn");
+  if (!els.learnTopic.value) els.learnTopic.value = load("hl-learn") || "";
+  if (data.learn?.steps?.length) {
+    Object.assign(learn, data.learn, { example: false, busy: false });
+    Object.keys(learn.simpler).forEach(k => { if (!learn.simpler[k]) delete learn.simpler[k]; });
+    learn.log.forEach(m => chatMsg(m.k, m.t));
+  }
+  renderLesson();
+
+  if (data.hw?.log?.length) {
+    hw.log = data.hw.log;
+    hw.turns = data.hw.turns || [];
+    rebuildHw();
+  } else showExample();
+
+  if (data.practice?.length) {
+    exam.practice = data.practice;
+    exam.titleKey = data.titleKey === "practiceMissed" ? "practiceMissed" : "practiceTitle";
+    renderPractice();
+  } else showPracticeExample();
+
+  const q = data.quiz;
+  if (q?.questions?.length && (q.state === "active" || q.state === "done")) {
+    Object.assign(quiz, {
+      questions: q.questions, answers: q.answers, index: q.index || 0,
+      startedAt: q.startedAt, endsAt: q.endsAt, finishedAt: q.finishedAt, timeUp: q.timeUp, announced: {},
+      extra: q.extra || {}, diff: DIFF[q.diff] ? q.diff : "medium", lesson: q.lesson || null,
+    });
+    if (q.state === "active") { setQuizState("active"); renderQuestion(); startTicking(); }
+    else { setQuizState("done"); renderResults(); }
+  } else setQuizState("idle");
+
+  resetFinishConfirm();
+  renderThumbs();
+  updateHw();
+}
+
+try { window.claude?.hot?.snapshot?.(snapshot); } catch {}
+if (window.claude?.hot?.ready) window.claude.hot.ready(start);
+else start(window.claude?.hot?.data ?? {});
+
+(async () => {
+  try { sample = window.claude ? await window.claude.use("sample") : null; } catch { sample = null; }
+  sampleState = sample ? "ready" : "missing";
+  if (sample) imgCaps = (await sample.limits().catch(() => null))?.images || null;
+  renderThumbs();
+  updateHw();
+  updateExam();
+  renderLearnThumb();
+  updateLearn();
+  renderLesson();
+  updateNow();
+  maybeTranslate();
+})();
+</script>
+
+</body></html>

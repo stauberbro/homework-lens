@@ -1,0 +1,32 @@
+{
+  "name": "homework-lens",
+  "productName": "Homework Lens",
+  "version": "1.0.0",
+  "description": "Learn a topic you missed, get homework help from a photo, and get ready for tests.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never"
+  },
+  "devDependencies": {
+    "electron": "latest",
+    "electron-builder": "latest"
+  },
+  "build": {
+    "appId": "app.homeworklens.desktop",
+    "productName": "Homework Lens",
+    "files": ["main.js", "src/**/*", "build/icon.png"],
+    "directories": { "output": "dist" },
+    "win": {
+      "target": "nsis",
+      "artifactName": "HomeworkLens-Setup.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Homework Lens"
+    }
+  }
+}
