@@ -227,6 +227,25 @@ section{position:relative}
 .lang-notes p{color:var(--ink-soft);font-size:15px;margin-top:4px}
 @media (max-width:760px){.mirror,.lang-notes{grid-template-columns:1fr}}
 
+/* Feature + subject rails */
+.strip{overflow:hidden;padding-block:clamp(48px,7vw,88px) 0}
+.strip .wrap{margin-bottom:22px}
+.strip .rails{margin-top:0}
+.chipx{display:inline-flex;align-items:center;gap:10px;background:var(--white);border:1px solid var(--line);border-radius:14px;padding:12px 20px;white-space:nowrap;font-family:var(--f-display);font-weight:800;font-size:clamp(17px,2vw,22px);letter-spacing:-.01em}
+.chipx i{width:10px;height:10px;border-radius:3px;background:var(--blue);flex:none}
+.chipx.y{background:var(--yellow);border-color:var(--yellow)}
+.chipx.b{background:var(--blue);border-color:var(--blue);color:var(--white)}
+.chipx.b i{background:var(--yellow)}
+.chipx.o{background:transparent;border-style:dashed}
+
+/* Giant sliding words */
+.giant-wrap{overflow:hidden;padding-block:clamp(40px,8vw,110px) clamp(20px,4vw,50px)}
+.giant{display:flex;align-items:center;gap:.45em;width:max-content;will-change:transform;font-family:var(--f-display);font-weight:900;font-size:clamp(64px,13vw,180px);letter-spacing:-.045em;line-height:1.05;white-space:nowrap;padding-block:.08em}
+.giant span{color:transparent;-webkit-text-stroke:2px var(--ink)}
+.giant span.f{color:var(--ink);-webkit-text-stroke:0}
+.giant span.hl{color:var(--ink);-webkit-text-stroke:0}
+.giant span.dot{color:var(--blue);-webkit-text-stroke:0;font-size:.5em}
+
 /* Settings */
 .prefs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:48px}
 .pref{background:var(--white);border:1px solid var(--line);border-radius:var(--r-card);padding:24px;display:grid;gap:14px;align-content:start}
@@ -285,7 +304,7 @@ footer small{font-size:13px;color:var(--ink-faint)}
   .in-1{animation-delay:.1s}.in-2{animation-delay:.28s}.in-3{animation-delay:.46s}.in-4{animation-delay:.62s}.in-5{animation-delay:.78s}
   .hero h1 .hl::before{animation:swipe 1s var(--ease) 1s both}
 }
-@keyframes rise{from{opacity:0;transform:translateY(28px);filter:blur(12px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes rise{from{opacity:0;transform:translateY(28px);filter:blur(5px)}to{opacity:1;transform:none;filter:blur(0)}}
 @keyframes swipe{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 @media (prefers-reduced-motion: reduce){
@@ -295,6 +314,7 @@ footer small{font-size:13px;color:var(--ink-faint)}
   .pin-stage{position:static;height:auto;padding-block:80px}
   .step{opacity:1;border-color:var(--blue)}
   .marquee{flex-wrap:wrap;width:auto}
+  .giant{flex-wrap:wrap;width:auto;font-size:clamp(40px,8vw,90px)}
 }
 </style>
 
@@ -367,6 +387,47 @@ footer small{font-size:13px;color:var(--ink-faint)}
       </div>
     </div>
   </div>
+
+  <!-- FEATURE + SUBJECT RAILS -->
+  <section class="strip" aria-label="What it does">
+    <div class="wrap"><span class="label">Everything in the menu, for any subject on your worksheet</span></div>
+    <div class="rails">
+      <div class="marquee" data-marquee="-1" data-travel="0.7">
+        <div class="chipx b"><i></i>Explain it</div>
+        <div class="chipx"><i></i>Walk me through</div>
+        <div class="chipx"><i></i>Check my work</div>
+        <div class="chipx y"><i></i>Quiz me</div>
+        <div class="chipx"><i></i>Practice questions</div>
+        <div class="chipx"><i></i>10-minute quiz</div>
+        <div class="chipx b"><i></i>I don't get it</div>
+        <div class="chipx"><i></i>Quick checks</div>
+        <div class="chipx"><i></i>Read aloud</div>
+        <div class="chipx y"><i></i>Gen Z slang</div>
+        <div class="chipx"><i></i>Paste with Ctrl+V</div>
+        <div class="chipx"><i></i>Quiz me on my mistakes</div>
+        <div class="chipx b"><i></i>Answers NOW</div>
+        <div class="chipx"><i></i>9 languages</div>
+        <div class="chipx"><i></i>Easy · Medium · Hard</div>
+      </div>
+      <div class="marquee" data-marquee="1" data-travel="0.7">
+        <div class="chipx o">Math</div>
+        <div class="chipx o">Biology</div>
+        <div class="chipx y">History</div>
+        <div class="chipx o">Chemistry</div>
+        <div class="chipx o">Geography</div>
+        <div class="chipx o">Physics</div>
+        <div class="chipx b">English</div>
+        <div class="chipx o">Literature</div>
+        <div class="chipx o">Algebra</div>
+        <div class="chipx y">Geometry</div>
+        <div class="chipx o">Civics</div>
+        <div class="chipx o">Earth science</div>
+        <div class="chipx b">Fractions</div>
+        <div class="chipx o">Grammar</div>
+        <div class="chipx o">Statistics</div>
+      </div>
+    </div>
+  </section>
 
   <!-- MENU -->
   <section class="sec" id="menu">
@@ -576,6 +637,18 @@ footer small{font-size:13px;color:var(--ink-faint)}
     </div>
   </section>
 
+  <!-- GIANT WORDS -->
+  <div class="giant-wrap" aria-hidden="true">
+    <div class="giant" data-marquee="-1" data-travel="0.55">
+      <span>Teach me</span><span class="dot">●</span>
+      <span class="f">Homework help</span><span class="dot">●</span>
+      <span>Exam prep</span><span class="dot">●</span>
+      <span class="hl">Answers NOW</span><span class="dot">●</span>
+      <span>Teach me</span><span class="dot">●</span>
+      <span class="f">Homework help</span>
+    </div>
+  </div>
+
   <!-- DOWNLOAD -->
   <section class="sec" id="download" style="padding-top:20px">
     <div class="wrap">
@@ -711,7 +784,7 @@ footer small{font-size:13px;color:var(--ink-faint)}
       return { el: el, top: absTop(el), h: el.offsetHeight, s: +el.dataset.speed, r: +(el.dataset.rot || 0) };
     });
     marquees = Array.prototype.map.call(document.querySelectorAll('[data-marquee]'), function(el){
-      return { el: el, top: absTop(el.parentNode), dir: +el.dataset.marquee, w: el.scrollWidth };
+      return { el: el, top: absTop(el.parentNode), dir: +el.dataset.marquee, w: el.scrollWidth, k: +(el.dataset.travel || 0.8) };
     });
   }
 
@@ -732,12 +805,12 @@ footer small{font-size:13px;color:var(--ink-faint)}
     var pe = p * p;
     heroInner.style.opacity = (1 - pe * 0.95).toFixed(3);
     heroInner.style.transform = 'translateY(' + (-p * 90).toFixed(1) + 'px) scale(' + (1 - p * 0.12).toFixed(4) + ')';
-    heroInner.style.filter = blur(pe * 12);
+    heroInner.style.filter = blur(pe * 5);
 
     // App window flattens and comes into focus over more than a screen of scroll
     var q = easeOut(clamp((y + vh - shotTop) / (vh * 1.35)));
     shot.style.transform = 'rotateX(' + ((1 - q) * 28).toFixed(2) + 'deg) scale(' + (0.86 + 0.14 * q).toFixed(4) + ')';
-    shot.style.filter = blur((1 - q) * 8);
+    shot.style.filter = blur((1 - q) * 3);
 
     for (var i = 0; i < floats.length; i++){
       var f = floats[i], dd = (f.top + f.h / 2) - (y + vh / 2);
@@ -750,10 +823,10 @@ footer small{font-size:13px;color:var(--ink-faint)}
       var raw = (y + vh * 1.0 - r.top) / (vh * 0.8);
       var e = easeOut(clamp((raw - r.delay) / (1 - Math.min(r.delay, 0.6))));
       var t, b;
-      if (r.kind === 'card')       { t = 'translate3d(0,' + ((1 - e) * 150).toFixed(1) + 'px,0) rotate(' + ((1 - e) * r.tilt).toFixed(2) + 'deg) scale(' + (0.96 + 0.04 * e).toFixed(4) + ')'; b = 14; }
-      else if (r.kind === 'scale') { t = 'translate3d(0,' + ((1 - e) * 90).toFixed(1) + 'px,0) scale(' + (0.88 + 0.12 * e).toFixed(4) + ')'; b = 12; }
-      else if (r.kind === 'fade')  { t = 'translate3d(0,' + ((1 - e) * 36).toFixed(1) + 'px,0)'; b = 8; }
-      else                         { t = 'translate3d(0,' + ((1 - e) * 80).toFixed(1) + 'px,0)'; b = 10; }
+      if (r.kind === 'card')       { t = 'translate3d(0,' + ((1 - e) * 150).toFixed(1) + 'px,0) rotate(' + ((1 - e) * r.tilt).toFixed(2) + 'deg) scale(' + (0.96 + 0.04 * e).toFixed(4) + ')'; b = 5; }
+      else if (r.kind === 'scale') { t = 'translate3d(0,' + ((1 - e) * 90).toFixed(1) + 'px,0) scale(' + (0.88 + 0.12 * e).toFixed(4) + ')'; b = 4; }
+      else if (r.kind === 'fade')  { t = 'translate3d(0,' + ((1 - e) * 36).toFixed(1) + 'px,0)'; b = 3; }
+      else                         { t = 'translate3d(0,' + ((1 - e) * 80).toFixed(1) + 'px,0)'; b = 4; }
       r.el.style.opacity = (0.12 + 0.88 * e).toFixed(3);
       r.el.style.transform = t;
       r.el.style.filter = blur((1 - e) * b);
@@ -764,7 +837,7 @@ footer small{font-size:13px;color:var(--ink-faint)}
       var mq = marquees[m];
       var mp = (y + vh - mq.top) / (vh * 2.2);
       var span = Math.max(0, mq.w - window.innerWidth);
-      var x = mq.dir < 0 ? -clamp(mp) * span * 0.8 : -(span * 0.8) + clamp(mp) * span * 0.8;
+      var x = mq.dir < 0 ? -clamp(mp) * span * mq.k : -(span * mq.k) + clamp(mp) * span * mq.k;
       mq.el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,0,0)';
     }
 
