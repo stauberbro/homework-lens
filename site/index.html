@@ -369,6 +369,16 @@ main .hl::before{transform:scaleX(var(--hl,1))}
 .btn{transition:transform .25s var(--ease-out), box-shadow .35s var(--ease), background-color .2s var(--ease), translate .45s var(--ease-out)}
 .float{transition:translate 1.1s var(--ease-out)}
 
+/* Picked reviews */
+.rv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:20px;margin-top:40px;perspective:1400px}
+.rv{background:var(--white);border:1px solid var(--line);border-radius:var(--r-card);padding:24px;display:flex;flex-direction:column;gap:14px;margin:0}
+.rv-stars{color:var(--blue);font-size:20px;letter-spacing:2px;line-height:1}
+.rv-stars .off{color:var(--line)}
+.rv blockquote{margin:0;font-size:17px;line-height:1.55;overflow-wrap:anywhere}
+.rv figcaption{font-family:var(--f-display);font-weight:800;font-size:15px}
+.rv figcaption span{font-family:var(--f-mono);font-weight:500;font-size:12px;color:var(--ink-faint);margin-left:8px}
+.rv-note{margin-top:18px;font-size:13px;color:var(--ink-faint)}
+
 /* Load sequence: slower, with blur that clears */
 @media (prefers-reduced-motion: no-preference){
   .in{animation:rise 1.3s var(--ease-out) both}
@@ -819,6 +829,18 @@ main .hl::before{transform:scaleX(var(--hl,1))}
       </dl>
     </div>
   </section>
+
+  <!-- PICKED REVIEWS (filled from the server; stays hidden until you pick at least one) -->
+  <section class="sec" id="reviews" style="padding-top:20px" hidden>
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Picked reviews</span>
+        <h2>From students who use it.</h2>
+      </div>
+      <div class="rv-grid" id="rvGrid"></div>
+      <p class="rv-note">Reviews are written in the Homework Lens app. We choose which ones to show here.</p>
+    </div>
+  </section>
 </main>
 
 <footer>
@@ -1119,6 +1141,35 @@ main .hl::before{transform:scaleX(var(--hl,1))}
       });
     }, { passive: true });
   }
+})();
+</script>
+
+<script>
+// Picked reviews: only the ones you chose in the review manager are returned.
+(function(){
+  var SERVER = "https://homework-lens.adam-stauber1.workers.dev";
+  var sec = document.getElementById("reviews"), grid = document.getElementById("rvGrid");
+  fetch(SERVER + "/v1/reviews/picked").then(function(r){ return r.ok ? r.json() : { reviews: [] }; }).then(function(data){
+    var list = (data && data.reviews) || [];
+    if (!list.length) return;
+    list.forEach(function(rv, i){
+      var fig = document.createElement("figure");
+      fig.className = "rv"; fig.setAttribute("data-reveal", "card");
+      fig.setAttribute("data-delay", String((i % 3) * 0.12)); fig.setAttribute("data-tilt", i % 2 ? "2" : "-2");
+      var stars = document.createElement("div"); stars.className = "rv-stars";
+      stars.setAttribute("aria-label", rv.stars + " out of 5 stars");
+      for (var s = 1; s <= 5; s++){ var st = document.createElement("span"); st.textContent = "★"; if (s > rv.stars) st.className = "off"; st.setAttribute("aria-hidden", "true"); stars.appendChild(st); }
+      var q = document.createElement("blockquote"); q.textContent = "“" + rv.text + "”";
+      var cap = document.createElement("figcaption"); cap.textContent = rv.name || "A student";
+      var when = document.createElement("span");
+      when.textContent = new Date(rv.created).toLocaleDateString("en", { month: "short", year: "numeric" });
+      cap.appendChild(when);
+      fig.appendChild(stars); fig.appendChild(q); fig.appendChild(cap);
+      grid.appendChild(fig);
+    });
+    sec.hidden = false;
+    window.dispatchEvent(new Event("resize")); // let the scroll effects re-measure the page
+  }).catch(function(){});
 })();
 </script>
 

@@ -1,8 +1,11 @@
-// Homework Lens server: holds the Anthropic API key and passes the app's requests to Claude.
-// The desktop app never sees the key. Answers stream back as newline-delimited JSON:
-//   {"t":"delta","text":"..."}   more of the answer
-//   {"t":"done","truncated":false}
-//   {"t":"error","code":"rate_limited","message":"..."}
+// Homework Lens server.
+//  - POST /v1/sample          the app's Claude requests (holds the Anthropic API key)
+//  - POST /v1/reviews         a review written in the app (13+ only)
+//  - GET  /v1/reviews/picked  reviews you chose to show on the download page (public)
+//  - GET  /v1/admin/reviews           every review       (needs ADMIN_KEY)
+//  - POST /v1/admin/reviews/:id       {action: "pick"|"unpick"|"hide"|"delete"}  (needs ADMIN_KEY)
+// Claude answers stream back as newline-delimited JSON:
+//   {"t":"delta","text":"..."}  {"t":"done","truncated":false}  {"t":"error","code":"...","message":"..."}
 import Anthropic from "@anthropic-ai/sdk";
 
 const MODEL = "claude-opus-5-5";
@@ -22,17 +25,22 @@ const TIER_EFFORT = { quick: "low", default: "medium", complex: "high" };
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-App-Key",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-App-Key, Authorization",
   "Access-Control-Max-Age": "86400",
 };
 
-function fail(status, code, message) {
-  return new Response(JSON.stringify({ code, message }), {
+function json(status, data, extra) {
+  return new Response(JSON.stringify(data), {
     status,
-    headers: { ...CORS, "Content-Type": "application/json" },
+    headers: { ...CORS, "Content-Type": "application/json", ...(extra || {}) },
   });
 }
+function fail(status, code, message) {
+  return json(status, { code, message });
+}
+
+// ---------------------------------------------------------------- Claude
 
 // Accepts a prompt string or user/assistant turns; returns Messages API turns.
 function toMessages(input, images) {
@@ -79,85 +87,203 @@ function errorCode(err) {
   return "upstream_error";
 }
 
+async function handleSample(req, env, ctx) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return fail(400, "invalid_request", "The request was not valid JSON.");
+  }
+
+  const images = Array.isArray(body.images) ? body.images : [];
+  if (images.length > MAX_IMAGES) return fail(400, "image_rejected", `At most ${MAX_IMAGES} images per request.`);
+  for (const img of images) {
+    if (!img || !IMAGE_TYPES.includes(img.media_type) || typeof img.data !== "string" || img.data.length > MAX_IMAGE_BASE64) {
+      return fail(400, "image_rejected", "An image was the wrong type or too large.");
+    }
+  }
+
+  const messages = toMessages(body.input, images);
+  if (messages === "too_large") return fail(413, "prompt_too_large", "The request was too long.");
+  if (!messages) return fail(400, "invalid_request", "The input must be text, or turns that start and end with the user.");
+
+  const effort =
+    ["low", "medium", "high"].includes(body.effort) ? body.effort : TIER_EFFORT[body.modelTier] || "medium";
+
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const stream = client.beta.messages.stream(
+    {
+      model: MODEL,
+      max_tokens: 32000,
+      system: body.json ? SYSTEM + "\n\n" + JSON_NOTE : SYSTEM,
+      messages,
+      thinking: { type: "adaptive" },
+      output_config: { effort },
+      // If the model declines, the API retries on a fallback model in the same call.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+    },
+    { signal: req.signal },
+  );
+
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const enc = new TextEncoder();
+  const send = (obj) => writer.write(enc.encode(JSON.stringify(obj) + "\n")).catch(() => {});
+
+  ctx.waitUntil(
+    (async () => {
+      try {
+        stream.on("text", (delta) => send({ t: "delta", text: delta }));
+        const msg = await stream.finalMessage();
+        if (msg.stop_reason === "refusal") send({ t: "error", code: "refused", message: "Claude declined this request." });
+        else send({ t: "done", truncated: msg.stop_reason === "max_tokens" });
+      } catch (err) {
+        send({ t: "error", code: errorCode(err), message: "The answer could not be finished." });
+      } finally {
+        writer.close().catch(() => {});
+      }
+    })(),
+  );
+
+  return new Response(readable, {
+    headers: { ...CORS, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
+  });
+}
+
+// ---------------------------------------------------------------- Reviews
+
+// Reviews live in Workers KV under "r:<id>". Nothing is public until you pick it.
+// No emails, no full names, no IP addresses are stored. A one-way hash of the IP
+// is kept for one hour only, to stop the same device posting again and again.
+
+function cleanText(s, max) {
+  return String(s || "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function allReviews(env) {
+  const out = [];
+  let cursor;
+  do {
+    const page = await env.REVIEWS.list({ prefix: "r:", cursor });
+    const vals = await Promise.all(page.keys.map((k) => env.REVIEWS.get(k.name, "json")));
+    for (const v of vals) if (v) out.push(v);
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  out.sort((a, b) => b.created - a.created);
+  return out;
+}
+
+async function handleNewReview(req, env) {
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return fail(400, "invalid_request", "The review was not valid JSON.");
+  }
+  const stars = Number(body.stars);
+  const text = cleanText(body.text, 500);
+  const name = cleanText(body.name, 24);
+  if (body.age13 !== true) return fail(403, "not_allowed", "Reviews are for users 13 and older.");
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) return fail(400, "invalid_request", "Pick 1 to 5 stars.");
+  if (text.length < 3) return fail(400, "invalid_request", "Write a few words.");
+
+  const ipKey = "ip:" + (await sha256((req.headers.get("CF-Connecting-IP") || "unknown") + "|homework-lens"));
+  if (await env.REVIEWS.get(ipKey)) return fail(429, "rate_limited", "You already sent a review. Thanks!");
+
+  const id = Date.now().toString(36) + "-" + crypto.randomUUID().slice(0, 8);
+  const review = { id, stars, text, name, created: Date.now(), status: "new" };
+  await env.REVIEWS.put("r:" + id, JSON.stringify(review));
+  await env.REVIEWS.put(ipKey, "1", { expirationTtl: 3600 });
+  return json(201, { ok: true });
+}
+
+async function handlePicked(env) {
+  const picked = (await allReviews(env))
+    .filter((r) => r.status === "picked")
+    .map((r) => ({ stars: r.stars, text: r.text, name: r.name || "", created: r.created }));
+  return json(200, { reviews: picked }, { "Cache-Control": "public, max-age=60" });
+}
+
+function isAdmin(req, env) {
+  const got = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  return !!env.ADMIN_KEY && got.length > 0 && got === env.ADMIN_KEY;
+}
+
+async function handleAdmin(req, env, path) {
+  if (!env.ADMIN_KEY) return fail(503, "not_set_up", "Add the ADMIN_KEY secret and deploy again.");
+  if (!isAdmin(req, env)) return fail(401, "wrong_password", "Wrong password.");
+
+  if (req.method === "GET" && path === "/v1/admin/reviews") return json(200, { reviews: await allReviews(env) }, { "Cache-Control": "no-store" });
+
+  const m = path.match(/^\/v1\/admin\/reviews\/([a-z0-9-]{6,40})$/);
+  if (req.method === "POST" && m) {
+    const key = "r:" + m[1];
+    const review = await env.REVIEWS.get(key, "json");
+    if (!review) return fail(404, "not_found", "That review no longer exists.");
+    let body = {};
+    try { body = await req.json(); } catch {}
+    const action = body.action;
+    if (action === "delete") {
+      await env.REVIEWS.delete(key);
+      return json(200, { ok: true, deleted: true });
+    }
+    const next = { pick: "picked", unpick: "new", hide: "hidden" }[action];
+    if (!next) return fail(400, "invalid_request", "Unknown action.");
+    review.status = next;
+    await env.REVIEWS.put(key, JSON.stringify(review));
+    return json(200, { ok: true, review });
+  }
+  return fail(404, "not_found", "Unknown route.");
+}
+
+// ---------------------------------------------------------------- Router
+
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
+    const path = url.pathname;
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
-    if (url.pathname === "/health") return new Response("ok", { headers: CORS });
-    if (req.method !== "POST" || url.pathname !== "/v1/sample") return fail(404, "not_found", "Unknown route.");
+    if (path === "/health") return new Response("ok", { headers: CORS });
 
+    // Public: picked reviews for the download page.
+    if (req.method === "GET" && path === "/v1/reviews/picked") {
+      if (!env.REVIEWS) return json(200, { reviews: [] });
+      return handlePicked(env);
+    }
+
+    // Admin: your review manager page.
+    if (path.startsWith("/v1/admin/")) {
+      if (!env.REVIEWS) return fail(503, "not_set_up", "The reviews database is not connected yet.");
+      return handleAdmin(req, env, path);
+    }
+
+    // Everything else is only for the app.
     // A light check that the request came from the app. Not a secret (it ships inside the app),
     // so the real protection is the rate limit below and the spend limit on your Anthropic account.
     if (env.APP_KEY && req.headers.get("X-App-Key") !== env.APP_KEY) {
       return fail(403, "not_granted", "This server only answers the Homework Lens app.");
     }
-
     if (env.LIMITER) {
       const who = req.headers.get("CF-Connecting-IP") || "unknown";
       const { success } = await env.LIMITER.limit({ key: who });
       if (!success) return fail(429, "rate_limited", "Too many requests. Wait a minute and try again.");
     }
 
-    let body;
-    try {
-      body = await req.json();
-    } catch {
-      return fail(400, "invalid_request", "The request was not valid JSON.");
+    if (req.method === "POST" && path === "/v1/sample") return handleSample(req, env, ctx);
+    if (req.method === "POST" && path === "/v1/reviews") {
+      if (!env.REVIEWS) return fail(503, "not_set_up", "Reviews are not set up yet.");
+      return handleNewReview(req, env);
     }
-
-    const images = Array.isArray(body.images) ? body.images : [];
-    if (images.length > MAX_IMAGES) return fail(400, "image_rejected", `At most ${MAX_IMAGES} images per request.`);
-    for (const img of images) {
-      if (!img || !IMAGE_TYPES.includes(img.media_type) || typeof img.data !== "string" || img.data.length > MAX_IMAGE_BASE64) {
-        return fail(400, "image_rejected", "An image was the wrong type or too large.");
-      }
-    }
-
-    const messages = toMessages(body.input, images);
-    if (messages === "too_large") return fail(413, "prompt_too_large", "The request was too long.");
-    if (!messages) return fail(400, "invalid_request", "The input must be text, or turns that start and end with the user.");
-
-    const effort =
-      ["low", "medium", "high"].includes(body.effort) ? body.effort : TIER_EFFORT[body.modelTier] || "medium";
-
-    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    const stream = client.beta.messages.stream(
-      {
-        model: MODEL,
-        max_tokens: 32000,
-        system: body.json ? SYSTEM + "\n\n" + JSON_NOTE : SYSTEM,
-        messages,
-        thinking: { type: "adaptive" },
-        output_config: { effort },
-        // If the model declines, the API retries on a fallback model in the same call.
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-      },
-      { signal: req.signal },
-    );
-
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
-    const enc = new TextEncoder();
-    const send = (obj) => writer.write(enc.encode(JSON.stringify(obj) + "\n")).catch(() => {});
-
-    ctx.waitUntil(
-      (async () => {
-        try {
-          stream.on("text", (delta) => send({ t: "delta", text: delta }));
-          const msg = await stream.finalMessage();
-          if (msg.stop_reason === "refusal") send({ t: "error", code: "refused", message: "Claude declined this request." });
-          else send({ t: "done", truncated: msg.stop_reason === "max_tokens" });
-        } catch (err) {
-          send({ t: "error", code: errorCode(err), message: "The answer could not be finished." });
-        } finally {
-          writer.close().catch(() => {});
-        }
-      })(),
-    );
-
-    return new Response(readable, {
-      headers: { ...CORS, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
-    });
+    return fail(404, "not_found", "Unknown route.");
   },
 };

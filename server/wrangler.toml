@@ -10,6 +10,13 @@ type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 20, period = 60 }
 
+# Reviews database. The deploy workflow creates it on Cloudflare the first time
+# and fills in the id below automatically.
+[[kv_namespaces]]
+binding = "REVIEWS"
+id = "REVIEWS_KV_ID"
+
 # Secrets (set with GitHub Actions, never written here):
 #   ANTHROPIC_API_KEY  your Anthropic API key
 #   APP_KEY            any random string; the app sends it with each request
+#   ADMIN_KEY          your password for the review manager page

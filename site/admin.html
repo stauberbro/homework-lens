@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Review Manager</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one column; password box, then every review as a row with its actions */
+:root{--paper:#F0F4F8;--blue:#1D4ED8;--yellow:#FDE047;--white:#FFFFFF;--ink:#0F172A;--line:#CBD5E1;
+  --ink-soft:color-mix(in srgb,var(--ink) 70%,transparent);--ink-faint:color-mix(in srgb,var(--ink) 50%,transparent);
+  --blue-wash:color-mix(in srgb,var(--blue) 9%,var(--white));
+  --f-display:"Archivo","Segoe UI",Arial,sans-serif;--f-body:"Inter","Segoe UI",system-ui,sans-serif;--f-mono:"JetBrains Mono",Consolas,monospace;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--f-body);padding:40px max(16px,env(safe-area-inset-right,0px)) 80px max(16px,env(safe-area-inset-left,0px))}
+main{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1{font:900 40px/1 var(--f-display);letter-spacing:-.03em;margin:0}
+h1 mark{background:linear-gradient(transparent 55%,var(--yellow) 55%);color:inherit;padding:0 2px}
+.label{font:600 12px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.box{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input[type=password]{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;min-width:0;flex:1 1 220px}
+button{font:800 14px/1 var(--f-display);border-radius:10px;padding:11px 16px;border:1px solid var(--line);background:var(--white);color:var(--ink);cursor:pointer}
+button.blue{background:var(--blue);border-color:var(--blue);color:var(--white)}
+button.yellow{background:var(--yellow);border-color:var(--yellow)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--white)}
+.rv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:start}
+.rv .stars{color:var(--blue);letter-spacing:2px}.rv .stars .off{color:var(--line)}
+.rv q{display:block;font-size:16px;overflow-wrap:anywhere}
+.rv .meta{font:500 12px/1.4 var(--f-mono);color:var(--ink-faint)}
+.chip{font:600 11px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;border-radius:6px;padding:5px 8px;background:var(--blue-wash)}
+.chip.picked{background:var(--yellow)}
+.chip.hidden{background:var(--line)}
+.acts{display:flex;flex-direction:column;gap:6px}
+.msg{margin:0;color:var(--ink-soft)}
+@media (max-width:600px){.rv{grid-template-columns:1fr}.acts{flex-direction:row;flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <span class="label">Homework Lens</span>
+    <h1>Review <mark>Manager</mark></h1>
+  </div>
+
+  <form class="box" id="login">
+    <label class="label" for="pw">Admin password</label>
+    <div class="row">
+      <input type="password" id="pw" autocomplete="current-password" required>
+      <button class="blue" type="submit">Open reviews</button>
+    </div>
+    <p class="msg" id="loginMsg">This is the ADMIN_KEY you saved in GitHub. Only you can see reviews here.</p>
+  </form>
+
+  <section id="app" hidden>
+    <div class="row" style="justify-content:space-between;margin-bottom:14px">
+      <div class="tabs" role="group" aria-label="Filter reviews">
+        <button type="button" data-f="new" aria-pressed="true">New</button>
+        <button type="button" data-f="picked" aria-pressed="false">On the page</button>
+        <button type="button" data-f="hidden" aria-pressed="false">Hidden</button>
+        <button type="button" data-f="all" aria-pressed="false">All</button>
+      </div>
+      <button type="button" id="reload">Refresh</button>
+    </div>
+    <p class="msg" id="count"></p>
+    <div id="list" style="display:flex;flex-direction:column;gap:12px;margin-top:12px"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  var SERVER = "https://homework-lens.adam-stauber1.workers.dev";
+  var pw = "", reviews = [], filter = "new";
+  try { pw = sessionStorage.getItem("hl_admin") || ""; } catch (e) {}
+  var $ = function(id){ return document.getElementById(id); };
+
+  function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({ "Authorization": "Bearer " + pw, "Content-Type": "application/json" }, opts.headers || {});
+    return fetch(SERVER + path, opts).then(function(r){ return r.json().then(function(d){ if (!r.ok) throw d; return d; }); });
+  }
+
+  function load(){
+    $("count").textContent = "Loading…";
+    api("/v1/admin/reviews").then(function(d){
+      reviews = d.reviews || [];
+      $("login").hidden = true; $("app").hidden = false;
+      try { sessionStorage.setItem("hl_admin", pw); } catch (e) {}
+      render();
+    }).catch(function(e){
+      $("login").hidden = false; $("app").hidden = true;
+      $("loginMsg").textContent = (e && e.message) || "Couldn't reach the server.";
+      try { sessionStorage.removeItem("hl_admin"); } catch (er) {}
+    });
+  }
+
+  function act(id, action, btn){
+    btn.disabled = true;
+    api("/v1/admin/reviews/" + id, { method: "POST", body: JSON.stringify({ action: action }) }).then(function(d){
+      if (d.deleted) reviews = reviews.filter(function(r){ return r.id !== id; });
+      else reviews = reviews.map(function(r){ return r.id === id ? d.review : r; });
+      render();
+    }).catch(function(e){ btn.disabled = false; alertRow(btn, (e && e.message) || "That didn't work."); });
+  }
+  function alertRow(btn, text){ var p = document.createElement("p"); p.className = "msg"; p.textContent = text; btn.parentNode.appendChild(p); }
+
+  var LABEL = { new: "New", picked: "On the page", hidden: "Hidden" };
+  function render(){
+    var list = $("list"); list.innerHTML = "";
+    var shown = reviews.filter(function(r){ return filter === "all" || r.status === filter; });
+    var counts = { new: 0, picked: 0, hidden: 0 };
+    reviews.forEach(function(r){ counts[r.status] = (counts[r.status] || 0) + 1; });
+    $("count").textContent = reviews.length + " reviews · " + counts.new + " new · " + counts.picked + " on the page · " + counts.hidden + " hidden";
+    if (!shown.length){ var p = document.createElement("p"); p.className = "msg"; p.textContent = "Nothing here yet."; list.appendChild(p); return; }
+    shown.forEach(function(r){
+      var row = document.createElement("article"); row.className = "box rv";
+      var left = document.createElement("div");
+      var stars = document.createElement("div"); stars.className = "stars"; stars.setAttribute("aria-label", r.stars + " out of 5");
+      for (var i = 1; i <= 5; i++){ var s = document.createElement("span"); s.textContent = "★"; if (i > r.stars) s.className = "off"; stars.appendChild(s); }
+      var q = document.createElement("q"); q.textContent = r.text;
+      var meta = document.createElement("div"); meta.className = "meta";
+      meta.textContent = (r.name || "No name") + " · " + new Date(r.created).toLocaleString();
+      var chip = document.createElement("span"); chip.className = "chip " + r.status; chip.textContent = LABEL[r.status] || r.status;
+      var top = document.createElement("div"); top.className = "row"; top.appendChild(stars); top.appendChild(chip);
+      left.appendChild(top); left.appendChild(q); left.appendChild(meta);
+      var acts = document.createElement("div"); acts.className = "acts";
+      function b(text, cls, action){ var x = document.createElement("button"); x.type = "button"; x.textContent = text; if (cls) x.className = cls; x.onclick = function(){ act(r.id, action, x); }; acts.appendChild(x); }
+      if (r.status !== "picked") b("Show on page", "yellow", "pick"); else b("Remove from page", "", "unpick");
+      if (r.status !== "hidden") b("Hide", "", "hide");
+      var del = document.createElement("button"); del.type = "button"; del.textContent = "Delete";
+      del.onclick = function(){
+        if (del.dataset.sure){ act(r.id, "delete", del); return; }
+        del.dataset.sure = "1"; del.textContent = "Click again to delete"; del.className = "blue";
+      };
+      acts.appendChild(del);
+      row.appendChild(left); row.appendChild(acts);
+      list.appendChild(row);
+    });
+  }
+
+  $("login").addEventListener("submit", function(e){ e.preventDefault(); pw = $("pw").value; load(); });
+  $("reload").addEventListener("click", load);
+  Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function(btn){
+    btn.addEventListener("click", function(){
+      filter = btn.dataset.f;
+      Array.prototype.forEach.call(document.querySelectorAll(".tabs button"), function(o){ o.setAttribute("aria-pressed", o === btn ? "true" : "false"); });
+      render();
+    });
+  });
+  if (pw) load();
+})();
+</script>
+</body>
+</html>

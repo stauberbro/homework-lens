@@ -17,6 +17,25 @@ jobs:
           node-version: 22
       - run: npm install
         working-directory: server
+
+      # Find (or create, the first time) the KV namespace that stores reviews,
+      # and put its id into wrangler.toml for this deploy.
+      - name: Connect the reviews database
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/storage/kv/namespaces"
+          TITLE="homework-lens-reviews"
+          ID=$(curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$API?per_page=100" | jq -r --arg t "$TITLE" '.result[] | select(.title == $t) | .id' | head -n1)
+          if [ -z "$ID" ]; then
+            ID=$(curl -fsS -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" -d "{\"title\":\"$TITLE\"}" "$API" | jq -r '.result.id')
+            echo "Created reviews database"
+          fi
+          if [ -z "$ID" ] || [ "$ID" = "null" ]; then echo "Could not find or create the reviews database"; exit 1; fi
+          sed -i "s/REVIEWS_KV_ID/$ID/" server/wrangler.toml
+
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -25,6 +44,8 @@ jobs:
           secrets: |
             ANTHROPIC_API_KEY
             APP_KEY
+            ADMIN_KEY
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           APP_KEY: ${{ secrets.APP_KEY }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
