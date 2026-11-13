@@ -30,10 +30,20 @@ const CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
+// Basic hardening headers on every response.
+const SEC = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+  "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+};
+// Only your website may call the admin routes from a browser.
+const ADMIN_ORIGIN = "https://stauberbro.github.io";
+
 function json(status, data, extra) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...CORS, "Content-Type": "application/json", ...(extra || {}) },
+    headers: { ...CORS, ...SEC, "Content-Type": "application/json", ...(extra || {}) },
   });
 }
 function fail(status, code, message) {
@@ -147,7 +157,7 @@ async function handleSample(req, env, ctx) {
   );
 
   return new Response(readable, {
-    headers: { ...CORS, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
+    headers: { ...CORS, ...SEC, "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
   });
 }
 
@@ -214,14 +224,28 @@ async function handlePicked(env) {
   return json(200, { reviews: picked }, { "Cache-Control": "public, max-age=60" });
 }
 
-function isAdmin(req, env) {
+// Compares the password in constant time (hash both, then compare every byte).
+async function isAdmin(req, env) {
   const got = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-  return !!env.ADMIN_KEY && got.length > 0 && got === env.ADMIN_KEY;
+  if (!env.ADMIN_KEY || !got) return false;
+  const [a, b] = await Promise.all([sha256(got), sha256(String(env.ADMIN_KEY).trim())]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
+
+const MAX_FAILS = 10; // wrong passwords per device per hour before a lockout
 
 async function handleAdmin(req, env, path) {
   if (!env.ADMIN_KEY) return fail(503, "not_set_up", "Add the ADMIN_KEY secret and deploy again.");
-  if (!isAdmin(req, env)) return fail(401, "wrong_password", "Wrong password.");
+
+  const failKey = "fail:" + (await sha256((req.headers.get("CF-Connecting-IP") || "unknown") + "|admin"));
+  const fails = Number((await env.REVIEWS.get(failKey)) || 0);
+  if (fails >= MAX_FAILS) return fail(429, "locked", "Too many wrong passwords. Try again in an hour.");
+  if (!(await isAdmin(req, env))) {
+    await env.REVIEWS.put(failKey, String(fails + 1), { expirationTtl: 3600 });
+    return fail(401, "wrong_password", "Wrong password.");
+  }
 
   if (req.method === "GET" && path === "/v1/admin/reviews") return json(200, { reviews: await allReviews(env) }, { "Cache-Control": "no-store" });
 
@@ -252,19 +276,39 @@ export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     const path = url.pathname;
-    if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
-    if (path === "/health") return new Response("ok", { headers: CORS });
+    const isAdminPath = path.startsWith("/v1/admin/");
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        headers: { ...CORS, ...SEC, ...(isAdminPath ? { "Access-Control-Allow-Origin": ADMIN_ORIGIN, Vary: "Origin" } : {}) },
+      });
+    }
+    if (path === "/health") return new Response("ok", { headers: { ...CORS, ...SEC } });
 
-    // Public: picked reviews for the download page.
+    const who = req.headers.get("CF-Connecting-IP") || "unknown";
+
+    // Public: picked reviews for the download page (cached at Cloudflare for a minute).
     if (req.method === "GET" && path === "/v1/reviews/picked") {
       if (!env.REVIEWS) return json(200, { reviews: [] });
-      return handlePicked(env);
+      const cache = caches.default;
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      const res = await handlePicked(env);
+      ctx.waitUntil(cache.put(req, res.clone()));
+      return res;
     }
 
-    // Admin: your review manager page.
-    if (path.startsWith("/v1/admin/")) {
+    // Admin: your review manager page. Rate limited and only answered for your website.
+    if (isAdminPath) {
       if (!env.REVIEWS) return fail(503, "not_set_up", "The reviews database is not connected yet.");
-      return handleAdmin(req, env, path);
+      if (env.LIMITER) {
+        const { success } = await env.LIMITER.limit({ key: "admin:" + who });
+        if (!success) return fail(429, "rate_limited", "Too many requests. Wait a minute.");
+      }
+      const res = await handleAdmin(req, env, path);
+      const h = new Headers(res.headers);
+      h.set("Access-Control-Allow-Origin", ADMIN_ORIGIN);
+      h.set("Vary", "Origin");
+      return new Response(res.body, { status: res.status, headers: h });
     }
 
     // Everything else is only for the app.
@@ -274,7 +318,6 @@ export default {
       return fail(403, "not_granted", "This server only answers the Homework Lens app.");
     }
     if (env.LIMITER) {
-      const who = req.headers.get("CF-Connecting-IP") || "unknown";
       const { success } = await env.LIMITER.limit({ key: who });
       if (!success) return fail(429, "rate_limited", "Too many requests. Wait a minute and try again.");
     }

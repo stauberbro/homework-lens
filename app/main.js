@@ -1,7 +1,16 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, session } = require("electron");
 const path = require("path");
 
 if (!app.requestSingleInstanceLock()) app.quit();
+
+// The app never needs the camera, microphone, location, notifications and so on.
+// Only copying text to the clipboard is allowed.
+const ALLOWED_PERMISSIONS = new Set(["clipboard-sanitized-write"]);
+
+// No embedded web views, ever.
+app.on("web-contents-created", (_e, contents) => {
+  contents.on("will-attach-webview", (e) => e.preventDefault());
+});
 
 let win;
 
@@ -19,6 +28,8 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      webSecurity: true,
+      devTools: !app.isPackaged, // developer tools only while building, never in the installed app
       spellcheck: true,
     },
   });
@@ -45,5 +56,11 @@ app.on("second-instance", () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(ALLOWED_PERMISSIONS.has(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
+  createWindow();
+});
 app.on("window-all-closed", () => app.quit());
