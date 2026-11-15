@@ -314,7 +314,8 @@ export default {
     // Everything else is only for the app.
     // A light check that the request came from the app. Not a secret (it ships inside the app),
     // so the real protection is the rate limit below and the spend limit on your Anthropic account.
-    if (env.APP_KEY && req.headers.get("X-App-Key") !== env.APP_KEY) {
+    // Stray spaces/newlines from pasting the secret are ignored (browsers trim header values anyway).
+    if (env.APP_KEY && (req.headers.get("X-App-Key") || "").trim() !== String(env.APP_KEY).trim()) {
       return fail(403, "not_granted", "This server only answers the Homework Lens app.");
     }
     if (env.LIMITER) {

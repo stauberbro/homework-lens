@@ -24,6 +24,8 @@ jobs:
           APP_KEY: ${{ secrets.APP_KEY }}
         run: |
           if (-not $env:SERVER_URL) { throw "Set the SERVER_URL variable in Settings > Secrets and variables > Actions > Variables." }
+          $env:SERVER_URL = $env:SERVER_URL.Trim()
+          $env:APP_KEY = "$env:APP_KEY".Trim()
           $cfg = "window.HL_CONFIG = { server: " + ($env:SERVER_URL | ConvertTo-Json) + ", appKey: " + ($env:APP_KEY | ConvertTo-Json) + " };"
           Set-Content -Path app/src/config.js -Value $cfg -Encoding utf8
 
