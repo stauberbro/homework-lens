@@ -52,7 +52,7 @@
 
   // ---------- one "Draw" button under each text box ----------
   function addButton(ta) {
-    if (ta.dataset.hw || ta.closest(".hw-dlg")) return;
+    if (ta.dataset.hw || ta.closest(".hw-dlg") || ta.closest("[data-no-hw]")) return;
     ta.dataset.hw = "1";
     var b = document.createElement("button");
     b.type = "button"; b.className = "hw-btn";
