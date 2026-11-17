@@ -163,11 +163,13 @@
     }
 
     function prompt() {
-      var name = LANG_NAMES[lang()] || "English";
       return "This image is a student's handwriting from the drawing pad in Homework Lens, a study app. " +
-        "It shows dark pen strokes on a white background. The app is set to " + name + ", but the student may write in any language or script, or write math.\n\n" +
-        "Give the 3 most likely readings of exactly what is written, most likely first. " +
-        "Keep the student's own language and script. Do not translate, correct, complete, answer or explain it. " +
+        "It shows dark pen strokes on a white background.\n\n" +
+        "First decide from the shapes of the letters which script it is written in: for example Arabic, Hebrew, Latin (English, Spanish...), Cyrillic, Greek, Chinese, Japanese, digits or math. " +
+        "Do not assume any language; students use this app in many languages and often write in a different one from the app's. " +
+        "Arabic is written right to left in connected letters with dots; Hebrew right to left in separate square letters; look closely before deciding.\n\n" +
+        "Give the 3 most likely readings of exactly what is written, most likely first. If you are unsure which script it is, include readings in each likely script. " +
+        "Keep the script the student used. Do not translate, correct, complete, answer or explain it. " +
         "For math, use plain text characters, such as x², √, ×, ÷, ≤ and 3/4. " +
         "If the readings are all the same, give just one. If the image is blank or you cannot read it, reply [].\n\n" +
         'Reply with only a JSON array of strings, for example ["first reading", "second reading", "third reading"].';
