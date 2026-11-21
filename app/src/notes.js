@@ -14,6 +14,9 @@
       back: "← All notes", del: "Delete note", delSure: "Yes, delete it", cancel: "Cancel",
       saved: "Saved", saving: "Saving...", chars: function (n) { return n.toLocaleString() + " characters"; },
       edited: "Edited",
+      drawingAlt: function (i) { return "Drawing " + i; }, removeDrawing: function (i) { return "Remove drawing " + i; },
+      drawings: function (n) { return n === 1 ? "1 drawing" : n + " drawings"; },
+      tooFull: "This device is out of space for notes. Delete a drawing or an old note.",
     },
     he: {
       nav: "הסיכומים שלי", title: "הסיכומים שלי",
@@ -24,6 +27,9 @@
       back: "→ כל הסיכומים", del: "מחיקת הסיכום", delSure: "כן, למחוק", cancel: "ביטול",
       saved: "נשמר", saving: "שומר...", chars: function (n) { return n.toLocaleString() + " תווים"; },
       edited: "נערך",
+      drawingAlt: function (i) { return "ציור " + i; }, removeDrawing: function (i) { return "הסרת ציור " + i; },
+      drawings: function (n) { return n === 1 ? "ציור אחד" : n + " ציורים"; },
+      tooFull: "אין מספיק מקום במכשיר לסיכומים. מחקו ציור או סיכום ישן.",
     },
   };
   function lang() { return (document.documentElement.lang || "en").toLowerCase().slice(0, 2); }
@@ -44,7 +50,11 @@
     ".nt-search{font:inherit;font-size:16px;color:var(--ink);background:var(--sheet);border:1px solid var(--line);border-radius:8px;padding:9px 11px;flex:1 1 200px;min-width:0}" +
     ".nt-title{font:600 22px/1.3 var(--display);color:var(--ink);background:var(--sheet);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}" +
     ".nt-body{min-height:340px;resize:vertical;line-height:1.6}" +
-    ".nt-meta{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;color:var(--ink-soft);font-size:13px}";
+    ".nt-meta{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;color:var(--ink-soft);font-size:13px}" +
+    ".nt-draws{display:flex;flex-direction:column;gap:12px}.nt-draws:empty{display:none}" +
+    ".nt-draw{position:relative;align-self:flex-start;max-width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px}" +
+    ".nt-draw img{display:block;max-width:100%;max-height:320px;height:auto}" +
+    ".nt-draw button{position:absolute;top:-10px;inset-inline-end:-10px;width:28px;height:28px;padding:0;border-radius:50%;background:var(--ink);color:var(--sheet);font-size:17px;display:grid;place-items:center}";
   var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
   var NOTE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h7M9 17h5"/></svg>';
@@ -64,7 +74,6 @@
 
     panel = document.createElement("div");
     panel.className = "panel"; panel.id = "panel-notes"; panel.hidden = true;
-    panel.setAttribute("data-no-hw", "1"); // no handwriting (AI) button in notes
     wrap.appendChild(panel);
 
     // Any other menu item hides the notes
@@ -128,7 +137,8 @@
         var b = el("button", "nt-item"); b.type = "button";
         b.appendChild(el("strong", null, n.title.trim() || s.untitled));
         if (n.text.trim()) b.appendChild(el("span", "nt-prev", n.text.trim().slice(0, 300)));
-        b.appendChild(el("span", "nt-date", s.edited + " " + when(n.updated)));
+        var dn = (n.drawings || []).length;
+        b.appendChild(el("span", "nt-date", s.edited + " " + when(n.updated) + (dn ? " · " + s.drawings(dn) : "")));
         b.dir = "auto";
         b.addEventListener("click", function () { openId = n.id; render(); });
         li.appendChild(b); list.appendChild(li);
@@ -167,6 +177,33 @@
     title.addEventListener("input", changed);
     body.addEventListener("input", changed);
 
+    // Drawings kept from the drawing pad ("Keep my drawing"), saved inside the note
+    var draws = el("div", "nt-draws");
+    function paintDraws() {
+      draws.innerHTML = "";
+      (n.drawings || []).forEach(function (d, i) {
+        var box = el("div", "nt-draw");
+        var img = document.createElement("img"); img.src = d.src; img.alt = s.drawingAlt(i + 1);
+        var x = el("button", null, "×"); x.type = "button"; x.setAttribute("aria-label", s.removeDrawing(i + 1));
+        x.addEventListener("click", function () {
+          n.drawings = n.drawings.filter(function (o) { return o.id !== d.id; });
+          n.updated = Date.now(); save(notes); paintDraws();
+        });
+        box.appendChild(img); box.appendChild(x); draws.appendChild(box);
+      });
+    }
+    body.hwKeep = function (file) {
+      var r = new FileReader();
+      r.onload = function () {
+        n.drawings = (n.drawings || []).concat([{ id: Date.now().toString(36), src: String(r.result) }]);
+        n.updated = Date.now();
+        if (!save(notes)) { n.drawings.pop(); status.textContent = s.tooFull; return; }
+        status.textContent = s.saved; paintDraws();
+      };
+      r.readAsDataURL(file);
+    };
+    paintDraws();
+
     var delRow = el("div", "actions");
     var del = el("button", "ghost small", s.del); del.type = "button";
     del.addEventListener("click", function () {
@@ -181,14 +218,14 @@
     });
     delRow.appendChild(del);
 
-    desk.appendChild(title); desk.appendChild(body); desk.appendChild(meta); desk.appendChild(delRow);
+    desk.appendChild(title); desk.appendChild(body); desk.appendChild(draws); desk.appendChild(meta); desk.appendChild(delRow);
     panel.appendChild(desk);
   }
 
   function flush() { clearTimeout(saveTimer); save(notes); }
   function dropIfEmpty() {
     var n = find(openId);
-    if (n && !n.title.trim() && !n.text.trim()) { notes = notes.filter(function (x) { return x !== n; }); save(notes); }
+    if (n && !n.title.trim() && !n.text.trim() && !(n.drawings || []).length) { notes = notes.filter(function (x) { return x !== n; }); save(notes); }
   }
   window.addEventListener("beforeunload", flush);
 

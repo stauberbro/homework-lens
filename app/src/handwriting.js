@@ -9,8 +9,9 @@
   var T = {
     en: {
       draw: "Draw", drawAria: "Write this by hand",
-      title: "Write it by hand", hint: "Write with your mouse, pen or finger. Then click Read my writing.",
-      undo: "Undo", clear: "Clear", cancel: "Cancel", read: "Read my writing",
+      title: "Write it by hand", hint: "Write or draw with your mouse, pen or finger. Read my writing turns it into text; Keep my drawing keeps it as a picture.",
+      hintNoKeep: "Write with your mouse, pen or finger. Then click Read my writing.",
+      undo: "Undo", clear: "Clear", cancel: "Cancel", read: "Read my writing", keep: "Keep my drawing",
       reading: "Reading your writing...", mean: "Did you mean:", none: "None of these, draw again",
       empty: "Write something first.", blank: "I couldn't read that. Try writing a bit bigger.",
       fail: "Couldn't read it right now. Check your internet and try again.",
@@ -18,8 +19,9 @@
     },
     he: {
       draw: "כתיבה ביד", drawAria: "לכתוב את זה ביד",
-      title: "כתבו ביד", hint: "כתבו עם העכבר, עט או אצבע. אחר כך לחצו על 'קרא את מה שכתבתי'.",
-      undo: "בטל", clear: "נקה", cancel: "ביטול", read: "קרא את מה שכתבתי",
+      title: "כתבו ביד", hint: "כתבו או ציירו עם העכבר, עט או אצבע. 'קרא את מה שכתבתי' הופך את זה לטקסט; 'לשמור את הציור' שומר את זה כתמונה.",
+      hintNoKeep: "כתבו עם העכבר, עט או אצבע. אחר כך לחצו על 'קרא את מה שכתבתי'.",
+      undo: "בטל", clear: "נקה", cancel: "ביטול", read: "קרא את מה שכתבתי", keep: "לשמור את הציור",
       reading: "קורא את הכתב שלך...", mean: "התכוונת ל:", none: "אף אחד מאלה, לכתוב שוב",
       empty: "כתבו משהו קודם.", blank: "לא הצלחתי לקרוא. נסו לכתוב קצת יותר גדול.",
       fail: "לא הצלחתי לקרוא כרגע. בדקו את החיבור לאינטרנט ונסו שוב.",
@@ -34,12 +36,13 @@
     ".hw-btn:hover{border-color:var(--pen);background:var(--pen-wash)}" +
     ".hw-btn svg{width:16px;height:16px;flex:none}" +
     ".hw-back{position:fixed;inset:0;z-index:90;background:rgba(10,15,25,.5);display:grid;place-items:center;padding:16px}" +
-    ".hw-dlg{background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:20px;width:min(760px,100%);display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto}" +
+    ".hw-dlg{background:var(--sheet);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:20px;width:min(1240px,100%);display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto}" +
     ".hw-dlg h2{font:600 22px/1.2 var(--display);margin:0}" +
     ".hw-dlg p{margin:0}" +
     ".hw-pad{position:relative;border:2px solid var(--line);border-radius:12px;background:#fff;touch-action:none;cursor:crosshair;overflow:hidden}" +
     ".hw-pad:focus-visible{outline:3px solid var(--pen);outline-offset:2px}" +
-    ".hw-pad canvas{display:block;width:100%;height:260px}" +
+    ".hw-pad canvas{display:block;width:100%;height:min(360px,46vh)}" +
+    "@media (max-width:600px){.hw-pad canvas{height:240px}}" +
     ".hw-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}" +
     ".hw-spacer{flex:1}" +
     ".hw-opts{display:flex;flex-direction:column;gap:8px}" +
@@ -77,15 +80,17 @@
     dlg.innerHTML =
       '<h2 id="hwTitle"></h2><p class="hw-msg" id="hwHint"></p>' +
       '<div class="hw-pad" tabindex="0" role="img"><canvas></canvas></div>' +
-      '<div class="hw-row"><button type="button" class="ghost small" data-a="undo"></button><button type="button" class="ghost small" data-a="clear"></button><span class="hw-spacer"></span><button type="button" class="ghost" data-a="cancel"></button><button type="button" class="go" data-a="read"></button></div>' +
+      '<div class="hw-row"><button type="button" class="ghost small" data-a="undo"></button><button type="button" class="ghost small" data-a="clear"></button><span class="hw-spacer"></span><button type="button" class="ghost" data-a="cancel"></button><button type="button" class="ghost" data-a="keep"></button><button type="button" class="go" data-a="read"></button></div>' +
       '<div id="hwOut" aria-live="polite"></div>';
     back.appendChild(dlg); document.body.appendChild(back);
+    var keepFn = keeperFor(target);
     dlg.querySelector("#hwTitle").textContent = s.title;
-    dlg.querySelector("#hwHint").textContent = s.hint;
+    dlg.querySelector("#hwHint").textContent = keepFn ? s.hint : s.hintNoKeep;
     var pad = dlg.querySelector(".hw-pad"); pad.setAttribute("aria-label", s.padAria);
     var btn = function (a) { return dlg.querySelector('[data-a="' + a + '"]'); };
     btn("undo").textContent = s.undo; btn("clear").textContent = s.clear;
     btn("cancel").textContent = s.cancel; btn("read").textContent = s.read;
+    btn("keep").textContent = s.keep; btn("keep").hidden = !keepFn;
     var out = dlg.querySelector("#hwOut");
 
     var canvas = pad.querySelector("canvas"), g = canvas.getContext("2d");
@@ -175,6 +180,19 @@
         'Reply with only a JSON array of strings, for example ["first reading", "second reading", "third reading"].';
     }
 
+    // Keep the drawing as a picture: no AI, nothing guessed.
+    btn("keep").onclick = async function () {
+      if (busy || !keepFn) return;
+      if (!strokes.length) { out.innerHTML = '<p class="hw-err"></p>'; out.firstChild.textContent = s.empty; return; }
+      busy = true;
+      try {
+        var blob = await snapshot();
+        var file = new File([blob], "drawing-" + Date.now() + ".png", { type: "image/png" });
+        keepFn(file);
+        close();
+      } finally { busy = false; }
+    };
+
     btn("read").onclick = async function () {
       if (busy) return;
       if (!strokes.length) { out.innerHTML = '<p class="hw-err"></p>'; out.firstChild.textContent = s.empty; return; }
@@ -218,6 +236,21 @@
 
     requestAnimationFrame(size);
     pad.focus();
+  }
+
+  // Where "Keep my drawing" puts the picture: a box can bring its own (notes do),
+  // otherwise the app's photo slot for that section, if it has one.
+  function keeperFor(ta) {
+    if (typeof ta.hwKeep === "function") return ta.hwKeep;
+    var g = window;
+    var map = {
+      nowQ: function (f) { g.setNowPhoto(f); },
+      learnTopic: function (f) { g.setLearnPhoto(f); },
+      material: function (f) { g.addPhotos([f]); },
+      question: function (f) { g.setHwImage(f); },
+    };
+    var need = { nowQ: "setNowPhoto", learnTopic: "setLearnPhoto", material: "addPhotos", question: "setHwImage" };
+    return map[ta.id] && typeof g[need[ta.id]] === "function" ? map[ta.id] : null;
   }
 
   // Put the text where the cursor was, then tell the app the box changed.
